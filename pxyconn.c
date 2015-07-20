@@ -1388,6 +1388,11 @@ deny:
 			                      NULL, NULL);
 			if (lb &&
 			    (evbuffer_copyout(inbuf, lb->buf, lb->sz) != -1)) {
+				if (ctx->opts->max_bytes > 0) {
+					if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
+						strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+					}
+				}
 				if (log_content_submit(ctx->logctx, lb,
 				                       1/*req*/) == -1) {
 					logbuf_free(lb);
@@ -1407,6 +1412,11 @@ deny:
 		lb = logbuf_new_copy(ocspresp, sizeof(ocspresp) - 1,
 		                     NULL, NULL);
 		if (lb) {
+			if (ctx->opts->max_bytes > 0) {
+				if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
+					strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+				}
+			}
 			if (log_content_submit(ctx->logctx, lb,
 			                       0/*resp*/) == -1) {
 				logbuf_free(lb);
@@ -1502,6 +1512,11 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 			}
 		}
 		if (lb && WANT_CONTENT_LOG(ctx)) {
+			if (ctx->opts->max_bytes > 0) {
+				if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
+					strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+				}
+			}
 			if (log_content_submit(ctx->logctx, lb,
 			                       1/*req*/) == -1) {
 				logbuf_free(lb);
@@ -1550,6 +1565,11 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 			}
 		}
 		if (lb && WANT_CONTENT_LOG(ctx)) {
+			if (ctx->opts->max_bytes > 0) {
+				if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
+					strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+				}
+			}
 			if (log_content_submit(ctx->logctx, lb,
 			                       0/*resp*/) == -1) {
 				logbuf_free(lb);
@@ -1575,6 +1595,11 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 		logbuf_t *lb;
 		lb = logbuf_new_alloc(evbuffer_get_length(inbuf), NULL, NULL);
 		if (lb && (evbuffer_copyout(inbuf, lb->buf, lb->sz) != -1)) {
+			if (ctx->opts->max_bytes > 0) {
+				if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
+					strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+				}
+			}
 			if (log_content_submit(ctx->logctx, lb,
 			                       (bev == ctx->src.bev)) == -1) {
 				logbuf_free(lb);
