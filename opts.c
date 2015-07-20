@@ -51,7 +51,7 @@ opts_new(void)
 	opts->sslcomp = 1;
 	opts->chain = sk_X509_new_null();
 	opts->sslmethod = SSLv23_method;
-
+	opts->max_bytes = 0;
 	return opts;
 }
 
@@ -104,6 +104,9 @@ opts_free(opts_t *opts)
 	}
 	if (opts->contentlog) {
 		free(opts->contentlog);
+	}
+	if (opts->dfxml_out) {
+		free(opts->dfxml_out);
 	}
 	memset(opts, 0, sizeof(opts_t));
 	free(opts);

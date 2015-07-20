@@ -108,74 +108,76 @@ main_usage(void)
 
 	fprintf(stderr,
 "Usage: %s [options...] [proxyspecs...]\n"
-"  -c pemfile  use CA cert (and key) from pemfile to sign forged certs\n"
-"  -k pemfile  use CA key (and cert) from pemfile to sign forged certs\n"
-"  -C pemfile  use CA chain from pemfile (intermediate and root CA certs)\n"
-"  -K pemfile  use key from pemfile for leaf certs (default: generate)\n"
-"  -t certdir  use cert+chain+key PEM files from certdir to target all sites\n"
-"              matching the common names (non-matching: generate if CA)\n"
-"  -O          deny all OCSP requests on all proxyspecs\n"
-"  -P          passthrough SSL connections if they cannot be split because of\n"
-"              client cert auth or no matching cert and no CA (default: drop)\n"
+"  -c pemfile   use CA cert (and key) from pemfile to sign forged certs\n"
+"  -k pemfile   use CA key (and cert) from pemfile to sign forged certs\n"
+"  -C pemfile   use CA chain from pemfile (intermediate and root CA certs)\n"
+"  -K pemfile   use key from pemfile for leaf certs (default: generate)\n"
+"  -t certdir   use cert+chain+key PEM files from certdir to target all sites\n"
+"               matching the common names (non-matching: generate if CA)\n"
+"  -O           deny all OCSP requests on all proxyspecs\n"
+"  -P           passthrough SSL connections if they cannot be split because of\n"
+"               client cert auth or no matching cert and no CA (default: drop)\n"
 #ifndef OPENSSL_NO_DH
-"  -g pemfile  use DH group params from pemfile (default: keyfiles or auto)\n"
+"  -g pemfile   use DH group params from pemfile (default: keyfiles or auto)\n"
 #define OPT_g "g:"
 #else /* OPENSSL_NO_DH */
 #define OPT_g 
 #endif /* !OPENSSL_NO_DH */
 #ifndef OPENSSL_NO_ECDH
-"  -G curve    use ECDH named curve (default: %s for non-RSA leafkey)\n"
+"  -G curve     use ECDH named curve (default: %s for non-RSA leafkey)\n"
 #define OPT_G "G:"
 #else /* OPENSSL_NO_ECDH */
 #define OPT_G 
 #endif /* OPENSSL_NO_ECDH */
 #ifdef SSL_OP_NO_COMPRESSION
-"  -Z          disable SSL/TLS compression on all connections\n"
+"  -Z           disable SSL/TLS compression on all connections\n"
 #define OPT_Z "Z"
 #else /* !SSL_OP_NO_COMPRESSION */
 #define OPT_Z 
 #endif /* !SSL_OP_NO_COMPRESSION */
-"  -r proto    only support one of " SSL_PROTO_SUPPORT_S "(default: all)\n"
-"  -R proto    disable one of " SSL_PROTO_SUPPORT_S "(default: none)\n"
-"  -s ciphers  use the given OpenSSL cipher suite spec (default: ALL:-aNULL)\n"
-"  -e engine   specify default NAT engine to use (default: %s)\n"
-"  -E          list available NAT engines and exit\n"
-"  -u user     drop privileges to user (default if run as root: nobody)\n"
-"  -m group    when using -u, override group (default: primary group of user)\n"
-"  -j jaildir  chroot() to jaildir (impacts -S/-F and sni, see manual page)\n"
-"  -p pidfile  write pid to pidfile (default: no pid file)\n"
-"  -l logfile  connect log: log one line summary per connection to logfile\n"
-"  -L logfile  content log: full data to file or named pipe (excludes -S/-F)\n"
-"  -S logdir   content log: full data to separate files in dir (excludes -L/-F)\n"
-"  -F pathspec content log: full data to sep files with %% subst (excl. -L/-S):\n"
-"              %%T - initial connection time as an ISO 8601 UTC timestamp\n"
-"              %%d - dest address:port\n"
-"              %%s - source address:port\n"
+"  -r proto     only support one of " SSL_PROTO_SUPPORT_S "(default: all)\n"
+"  -R proto     disable one of " SSL_PROTO_SUPPORT_S "(default: none)\n"
+"  -s ciphers   use the given OpenSSL cipher suite spec (default: ALL:-aNULL)\n"
+"  -e engine    specify default NAT engine to use (default: %s)\n"
+"  -E           list available NAT engines and exit\n"
+"  -u user      drop privileges to user (default if run as root: nobody)\n"
+"  -m group     when using -u, override group (default: primary group of user)\n"
+"  -j jaildir   chroot() to jaildir (impacts -S/-F and sni, see manual page)\n"
+"  -p pidfile   write pid to pidfile (default: no pid file)\n"
+"  -b max_bytes max number of bytes per flow to save\n"
+"  -l logfile   connect log: log one line summary per connection to logfile\n"
+"  -L logfile   content log: full data to file or named pipe (excludes -S/-F)\n"
+"  -S logdir    content log: full data to separate files in dir (excludes -L/-F)\n"
+"  -X filename  DFXML output to filename (Active when full data to separate files is enabled)\n"
+"  -F pathspec  content log: full data to sep files with %% subst (excl. -L/-S):\n"
+"               %%T - initial connection time as an ISO 8601 UTC timestamp\n"
+"               %%d - dest address:port\n"
+"               %%s - source address:port\n"
 #ifdef HAVE_LOCAL_PROCINFO
-"              %%x - base name of local process        (requires -i)\n"
-"              %%X - full path to local process        (requires -i)\n"
-"              %%u - user name or id of local process  (requires -i)\n"
-"              %%g - group name or id of local process (requires -i)\n"
+"               %%x - base name of local process        (requires -i)\n"
+"               %%X - full path to local process        (requires -i)\n"
+"               %%u - user name or id of local process  (requires -i)\n"
+"               %%g - group name or id of local process (requires -i)\n"
 #endif /* HAVE_LOCAL_PROCINFO */
-"              %%%% - literal '%%'\n"
+"               %%%% - literal '%%'\n"
 #ifdef HAVE_LOCAL_PROCINFO
-"      e.g.    \"/var/log/sslsplit/%%X/%%u-%%s-%%d-%%T.log\"\n"
-"  -i          look up local process owning each connection for logging\n"
+"      e.g.     \"/var/log/sslsplit/%%X/%%u-%%s-%%d-%%T.log\"\n"
+"  -i           look up local process owning each connection for logging\n"
 #define OPT_i "i"
 #else /* !HAVE_LOCAL_PROCINFO */
-"      e.g.    \"/var/log/sslsplit/%%T-%%s-%%d.log\"\n"
+"      e.g.     \"/var/log/sslsplit/%%T-%%s-%%d.log\"\n"
 #define OPT_i 
 #endif /* HAVE_LOCAL_PROCINFO */
-"  -d          daemon mode: run in background, log error messages to syslog\n"
-"  -D          debug mode: run in foreground, log debug messages on stderr\n"
-"  -V          print version information and exit\n"
-"  -h          print usage information and exit\n"
-"  proxyspec = type listenaddr+port [natengine|targetaddr+port|\"sni\"+port]\n"
-"      e.g.    http 0.0.0.0 8080 www.roe.ch 80  # http/4; static hostname dst\n"
-"              https ::1 8443 2001:db8::1 443   # https/6; static address dst\n"
-"              https 127.0.0.1 9443 sni 443     # https/4; SNI DNS lookups\n"
-"              tcp 127.0.0.1 10025              # tcp/4; default NAT engine\n"
-"              ssl 2001:db8::2 9999 pf          # ssl/6; NAT engine 'pf'\n"
+"  -d           daemon mode: run in background, log error messages to syslog\n"
+"  -D           debug mode: run in foreground, log debug messages on stderr\n"
+"  -V           print version information and exit\n"
+"  -h           print usage information and exit\n"
+"  proxyspec =  type listenaddr+port [natengine|targetaddr+port|\"sni\"+port]\n"
+"      e.g.     http 0.0.0.0 8080 www.roe.ch 80  # http/4; static hostname dst\n"
+"               https ::1 8443 2001:db8::1 443   # https/6; static address dst\n"
+"               https 127.0.0.1 9443 sni 443     # https/4; SNI DNS lookups\n"
+"               tcp 127.0.0.1 10025              # tcp/4; default NAT engine\n"
+"               ssl 2001:db8::2 9999 pf          # ssl/6; NAT engine 'pf'\n"
 "Example:\n"
 "  %s -k ca.key -c ca.pem -P  https 127.0.0.1 8443  https ::1 8443\n"
 	"%s", BNAME,
@@ -275,7 +277,7 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv, OPT_g OPT_G OPT_Z OPT_i
-	                    "k:c:C:K:t:OPs:r:R:e:Eu:m:j:p:l:L:S:F:dDVh")) != -1) {
+	                    "k:c:C:K:t:OPs:r:R:e:Eu:m:j:p:b:l:L:S:F:dDVh")) != -1) {
 		switch (ch) {
 			case 'c':
 				if (opts->cacrt)
@@ -485,6 +487,9 @@ main(int argc, char *argv[])
 				if (!opts->jaildir)
 					oom_die(argv0);
 				break;
+			case 'b':
+				opts->max_bytes = strtol(strdup(optarg), NULL, 10);
+				break;
 			case 'l':
 				if (opts->connectlog)
 					free(opts->connectlog);
@@ -509,6 +514,19 @@ main(int argc, char *argv[])
 					oom_die(argv0);
 				opts->contentlog_isdir = 1;
 				opts->contentlog_isspec = 0;
+				break;
+			case 'X':
+				if (opts->dfxml_out)
+					free(opts->dfxml_out);
+				if (opts->contentlog_isdir == 1) {
+					opts->dfxml_out = strdup(optarg);
+					if (!opts->dfxml_out)
+						oom_die(argv0);
+				}
+				else {
+					fprintf(stderr, "Full data to separate file is not enabled");
+					exit(EXIT_FAILURE);
+				}
 				break;
 			case 'F':
 				if (opts->contentlog)
