@@ -136,6 +136,9 @@ typedef struct pxy_conn_ctx {
 	char *src_str;
 	char *dst_str;
 
+	/* log limits that is determined by option max bytes */
+	unsigned int bytes_count;
+
 	/* log strings from HTTP request */
 	char *http_method;
 	char *http_uri;
@@ -194,6 +197,7 @@ pxy_conn_ctx_new(proxyspec_t *spec, opts_t *opts,
 	memset(ctx, 0, sizeof(pxy_conn_ctx_t));
 	ctx->spec = spec;
 	ctx->opts = opts;
+	ctx->bytes_count = 0;
 	ctx->fd = fd;
 	ctx->thridx = pxy_thrmgr_attach(thrmgr, &ctx->evbase, &ctx->dnsbase);
 	ctx->thrmgr = thrmgr;
@@ -1389,15 +1393,32 @@ deny:
 			if (lb &&
 			    (evbuffer_copyout(inbuf, lb->buf, lb->sz) != -1)) {
 				if (ctx->opts->max_bytes > 0) {
-					if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
-						strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+					unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
+					if(ctx->bytes_count < max_char_count) {
+						unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
+						char *new_buf = malloc(sizeof(char) * new_size);
+						memcpy(new_buf, lb->buf, new_size);
+						logbuf_free(lb);
+
+						lb = logbuf_new_alloc(new_size, NULL, NULL);
+						lb->buf = (unsigned char*)new_buf;
+						ctx->bytes_count += new_size;
+
+						if (log_content_submit(ctx->logctx, lb,
+						                       0/*resp*/) == -1) {
+							logbuf_free(lb);
+							log_err_printf("Warning: Content log "
+							               "submission failed\n");
+						}
 					}
 				}
-				if (log_content_submit(ctx->logctx, lb,
-				                       1/*req*/) == -1) {
-					logbuf_free(lb);
-					log_err_printf("Warning: Content log "
-					               "submission failed\n");
+				else{
+					if (log_content_submit(ctx->logctx, lb,
+					                       0/*resp*/) == -1) {
+						logbuf_free(lb);
+						log_err_printf("Warning: Content log "
+						               "submission failed\n");
+					}
 				}
 			}
 		}
@@ -1413,15 +1434,32 @@ deny:
 		                     NULL, NULL);
 		if (lb) {
 			if (ctx->opts->max_bytes > 0) {
-				if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
-					strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
+				if(ctx->bytes_count < max_char_count) {
+					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
+					char *new_buf = malloc(sizeof(char) * new_size);
+					memcpy(new_buf, lb->buf, new_size);
+					logbuf_free(lb);
+
+					lb = logbuf_new_alloc(new_size, NULL, NULL);
+					lb->buf = (unsigned char*)new_buf;
+					ctx->bytes_count += new_size;
+
+					if (log_content_submit(ctx->logctx, lb,
+					                       0/*resp*/) == -1) {
+						logbuf_free(lb);
+						log_err_printf("Warning: Content log "
+						               "submission failed\n");
+					}
 				}
 			}
-			if (log_content_submit(ctx->logctx, lb,
-			                       0/*resp*/) == -1) {
-				logbuf_free(lb);
-				log_err_printf("Warning: Content log "
-				               "submission failed\n");
+			else{
+				if (log_content_submit(ctx->logctx, lb,
+				                       0/*resp*/) == -1) {
+					logbuf_free(lb);
+					log_err_printf("Warning: Content log "
+					               "submission failed\n");
+				}
 			}
 		}
 	}
@@ -1513,15 +1551,32 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 		}
 		if (lb && WANT_CONTENT_LOG(ctx)) {
 			if (ctx->opts->max_bytes > 0) {
-				if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
-					strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
+				if(ctx->bytes_count < max_char_count) {
+					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
+					char *new_buf = malloc(sizeof(char) * new_size);
+					memcpy(new_buf, lb->buf, new_size);
+					logbuf_free(lb);
+
+					lb = logbuf_new_alloc(new_size, NULL, NULL);
+					lb->buf = (unsigned char*)new_buf;
+					ctx->bytes_count += new_size;
+
+					if (log_content_submit(ctx->logctx, lb,
+					                       0/*resp*/) == -1) {
+						logbuf_free(lb);
+						log_err_printf("Warning: Content log "
+						               "submission failed\n");
+					}
 				}
 			}
-			if (log_content_submit(ctx->logctx, lb,
-			                       1/*req*/) == -1) {
-				logbuf_free(lb);
-				log_err_printf("Warning: Content log "
-				               "submission failed\n");
+			else{
+				if (log_content_submit(ctx->logctx, lb,
+				                       0/*resp*/) == -1) {
+					logbuf_free(lb);
+					log_err_printf("Warning: Content log "
+					               "submission failed\n");
+				}
 			}
 		}
 		if (!ctx->seen_req_header)
@@ -1566,15 +1621,32 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 		}
 		if (lb && WANT_CONTENT_LOG(ctx)) {
 			if (ctx->opts->max_bytes > 0) {
-				if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
-					strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
+				if(ctx->bytes_count < max_char_count) {
+					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
+					char *new_buf = malloc(sizeof(char) * new_size);
+					memcpy(new_buf, lb->buf, new_size);
+					logbuf_free(lb);
+
+					lb = logbuf_new_alloc(new_size, NULL, NULL);
+					lb->buf = (unsigned char*)new_buf;
+					ctx->bytes_count += new_size;
+
+					if (log_content_submit(ctx->logctx, lb,
+					                       0/*resp*/) == -1) {
+						logbuf_free(lb);
+						log_err_printf("Warning: Content log "
+						               "submission failed\n");
+					}
 				}
 			}
-			if (log_content_submit(ctx->logctx, lb,
-			                       0/*resp*/) == -1) {
-				logbuf_free(lb);
-				log_err_printf("Warning: Content log "
-				               "submission failed\n");
+			else{
+				if (log_content_submit(ctx->logctx, lb,
+				                       0/*resp*/) == -1) {
+					logbuf_free(lb);
+					log_err_printf("Warning: Content log "
+					               "submission failed\n");
+				}
 			}
 		}
 		if (!ctx->seen_resp_header)
@@ -1596,15 +1668,32 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 		lb = logbuf_new_alloc(evbuffer_get_length(inbuf), NULL, NULL);
 		if (lb && (evbuffer_copyout(inbuf, lb->buf, lb->sz) != -1)) {
 			if (ctx->opts->max_bytes > 0) {
-				if(lb->sz > (ctx->opts->max_bytes / sizeof(char))) {
-					strncpy(lb->buf, lb->buf, (ctx->opts->max_bytes / sizeof(char)));
+				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
+				if(ctx->bytes_count < max_char_count) {
+					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
+					char *new_buf = malloc(sizeof(char) * new_size);
+					memcpy(new_buf, lb->buf, new_size);
+					logbuf_free(lb);
+
+					lb = logbuf_new_alloc(new_size, NULL, NULL);
+					lb->buf = (unsigned char*)new_buf;
+					ctx->bytes_count += new_size;
+
+					if (log_content_submit(ctx->logctx, lb,
+					                       0/*resp*/) == -1) {
+						logbuf_free(lb);
+						log_err_printf("Warning: Content log "
+						               "submission failed\n");
+					}
 				}
 			}
-			if (log_content_submit(ctx->logctx, lb,
-			                       (bev == ctx->src.bev)) == -1) {
-				logbuf_free(lb);
-				log_err_printf("Warning: Content log "
-				               "submission failed\n");
+			else{
+				if (log_content_submit(ctx->logctx, lb,
+				                       0/*resp*/) == -1) {
+					logbuf_free(lb);
+					log_err_printf("Warning: Content log "
+					               "submission failed\n");
+				}
 			}
 		}
 	}

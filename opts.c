@@ -52,6 +52,7 @@ opts_new(void)
 	opts->chain = sk_X509_new_null();
 	opts->sslmethod = SSLv23_method;
 	opts->max_bytes = 0;
+	opts->preserve_body = 1;
 	return opts;
 }
 

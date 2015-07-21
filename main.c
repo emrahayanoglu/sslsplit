@@ -144,6 +144,7 @@ main_usage(void)
 "  -m group     when using -u, override group (default: primary group of user)\n"
 "  -j jaildir   chroot() to jaildir (impacts -S/-F and sni, see manual page)\n"
 "  -p pidfile   write pid to pidfile (default: no pid file)\n"
+"  -B 		    disable response body saving into log(default: enabled)\n"
 "  -b max_bytes max number of bytes per flow to save\n"
 "  -l logfile   connect log: log one line summary per connection to logfile\n"
 "  -L logfile   content log: full data to file or named pipe (excludes -S/-F)\n"
@@ -277,7 +278,7 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv, OPT_g OPT_G OPT_Z OPT_i
-	                    "k:c:C:K:t:OPs:r:R:e:Eu:m:j:p:b:l:L:S:F:dDVh")) != -1) {
+	                    "k:c:C:K:t:OPs:r:R:e:Eu:m:j:p:B:b:l:L:S:F:dDVh")) != -1) {
 		switch (ch) {
 			case 'c':
 				if (opts->cacrt)
@@ -486,6 +487,9 @@ main(int argc, char *argv[])
 				opts->jaildir = strdup(optarg);
 				if (!opts->jaildir)
 					oom_die(argv0);
+				break;
+			case 'B':
+				opts->preserve_body = 0;
 				break;
 			case 'b':
 				opts->max_bytes = strtol(strdup(optarg), NULL, 10);
