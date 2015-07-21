@@ -86,7 +86,6 @@ typedef struct opts {
 	char *dropgroup;
 	char *jaildir;
 	char *pidfile;
-	unsigned int preserve_body; //0 for disabled, 1 for enabled (Default is 1)
 	char *connectlog;
 	char *contentlog;
 	char *dfxml_out;
