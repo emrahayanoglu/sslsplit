@@ -31,6 +31,7 @@
 
 #include "attrib.h"
 
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdint.h>
@@ -55,6 +56,8 @@ typedef void (*sys_dir_eachfile_cb_t)(const char *, void *) NONNULL(1);
 int sys_dir_eachfile(const char *, sys_dir_eachfile_cb_t, void *) NONNULL(1,2);
 
 uint32_t sys_get_cpu_cores(void) WUNRES;
+
+off_t sys_get_filesize(const char *);
 
 #endif /* !SYS_H */
 

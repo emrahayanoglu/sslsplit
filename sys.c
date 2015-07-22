@@ -498,4 +498,22 @@ sys_get_cpu_cores(void)
 #endif /* !_SC_NPROCESSORS_ONLN */
 }
 
+
+/*
+ * Get the file size from the system.
+ */
+off_t 
+sys_get_filesize(const char *filename)
+{
+	struct stat st;
+
+	if(stat(filename, &st) == 0)
+		return st.st_size;
+
+	log_err_printf("Cannot determine size of %s: %s\n",
+		               filename, strerror(errno));
+
+	return -1;
+}
+
 /* vim: set noet ft=c: */

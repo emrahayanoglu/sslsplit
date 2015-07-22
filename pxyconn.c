@@ -136,6 +136,10 @@ typedef struct pxy_conn_ctx {
 	char *src_str;
 	char *dst_str;
 
+	/* connection start time and end time*/
+	time_t start_conn_time;
+	time_t end_conn_time;
+
 	/* log limits that is determined by option max bytes */
 	unsigned int bytes_count;
 
@@ -1077,6 +1081,9 @@ bufferevent_free_and_close_fd(struct bufferevent *bev, pxy_conn_ctx_t *ctx)
 	}
 #endif /* DEBUG_PROXY */
 
+	/* set the end connection time */
+	ctx->end_conn_time = time(NULL);
+
 	bufferevent_free(bev); /* does not free SSL unless the option
 	                          BEV_OPT_CLOSE_ON_FREE was set */
 	if (ssl) {
@@ -1776,6 +1783,9 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 
 		/* dst has connected */
 		ctx->connected = 1;
+
+		/* set the start connection time */
+		ctx->start_conn_time = time(NULL);
 
 		/* wrap client-side socket in an eventbuffer */
 		if (ctx->spec->ssl && !ctx->passthrough) {
