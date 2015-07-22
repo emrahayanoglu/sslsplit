@@ -803,10 +803,24 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 	off_t file_size = sys_get_filesize(ctx->u.dir.filename);
 
 	char start_time_str[24];
-	strftime(start_time_str, sizeof(start_time_str),"%Y%m%dT%H%M%SZ", gmtime(&start_conn));
+	int n;
+	
+	n = strftime(start_time_str, sizeof(start_time_str),"%Y%m%dT%H%M%SZ", gmtime(&start_conn));
+	
+	if (n == 0) {
+		log_err_printf("Error from strftime(): buffer too small\n");
+		return -1;
+	}
 
 	char end_time_str[24];
-	strftime(end_time_str, sizeof(end_time_str),"%Y%m%dT%H%M%SZ", gmtime(&end_conn));
+	n = 1;
+
+	n = strftime(end_time_str, sizeof(end_time_str),"%Y%m%dT%H%M%SZ", gmtime(&end_conn));
+
+	if (n == 0) {
+		log_err_printf("Error from strftime(): buffer too small\n");
+		return -1;
+	}
 
 	asprintf(&out_dfxml_str, format, ctx->u.dir.filename, file_size, start_time_str,
 				end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr, srcport, dstport);

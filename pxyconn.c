@@ -169,6 +169,12 @@ typedef struct pxy_conn_ctx {
 	evutil_socket_t fd;
 	struct event *ev;
 
+	/* event for dfxml write timeout */
+	struct event *ev_dfxml;
+
+	/* verifier that checks whether dfxml is sent or not */
+	int is_dfxml_sent;
+
 	/* original destination address, family and certificate */
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
@@ -205,6 +211,7 @@ pxy_conn_ctx_new(proxyspec_t *spec, opts_t *opts,
 	ctx->fd = fd;
 	ctx->thridx = pxy_thrmgr_attach(thrmgr, &ctx->evbase, &ctx->dnsbase);
 	ctx->thrmgr = thrmgr;
+	ctx->is_dfxml_sent = 0;
 #ifdef HAVE_LOCAL_PROCINFO
 	ctx->lproc.pid = -1;
 #endif /* HAVE_LOCAL_PROCINFO */
@@ -276,6 +283,9 @@ pxy_conn_ctx_free(pxy_conn_ctx_t *ctx)
 	if (ctx->ev) {
 		event_free(ctx->ev);
 	}
+	if (ctx->ev_dfxml) {
+		event_free(ctx->ev_dfxml);
+	}
 	if (ctx->sni) {
 		free(ctx->sni);
 	}
@@ -301,6 +311,9 @@ static int pxy_ossl_servername_cb(SSL *ssl, int *al, void *arg);
 static int pxy_ossl_sessnew_cb(SSL *, SSL_SESSION *);
 static void pxy_ossl_sessremove_cb(SSL_CTX *, SSL_SESSION *);
 static SSL_SESSION * pxy_ossl_sessget_cb(SSL *, unsigned char *, int, int *);
+
+/* forward declaration of libevent callback for dfxml timer */
+static void pxy_dfxml_timeout(evutil_socket_t, short, void *);
 
 /*
  * Dump information on a certificate to the debug log.
@@ -1084,6 +1097,9 @@ bufferevent_free_and_close_fd(struct bufferevent *bev, pxy_conn_ctx_t *ctx)
 	/* set the end connection time */
 	ctx->end_conn_time = time(NULL);
 
+	/* delete the delay timer event for dfxml out */
+	event_del(ctx->ev_dfxml);
+
 	bufferevent_free(bev); /* does not free SSL unless the option
 	                          BEV_OPT_CLOSE_ON_FREE was set */
 	if (ssl) {
@@ -1787,6 +1803,18 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 		/* set the start connection time */
 		ctx->start_conn_time = time(NULL);
 
+		/* if the dfxml out is set and delay for the dfxml is also set then start time */
+		if (ctx->opts->max_delay_for_dfxml > 0) {
+			struct timeval timer_delay = {ctx->opts->max_delay_for_dfxml, 0};
+
+			ctx->ev_dfxml = event_new(ctx->evbase, -1, EV_PERSIST, pxy_dfxml_timeout, NULL);
+			if (!ctx->ev_dfxml)
+				log_err_printf("Timer event for DFXML "
+								"out is not created!\n");
+				return;
+			evtimer_add(ctx->ev_dfxml, &timer_delay);
+		}
+
 		/* wrap client-side socket in an eventbuffer */
 		if (ctx->spec->ssl && !ctx->passthrough) {
 			ctx->src.ssl = pxy_srcssl_create(ctx, this->ssl);
@@ -2320,6 +2348,20 @@ memout:
 	evutil_closesocket(fd);
 	pxy_conn_ctx_free(ctx);
 	return;
+}
+
+
+
+/*
+ * Whenever dfxml timer is triggered, information about current log
+ * is written out to the DFXML out file
+ */
+static void 
+pxy_dfxml_timeout(evutil_socket_t fd, short what, void *arg)
+{
+	//Make DFXML output to the provided file through log context
+	pxy_conn_ctx_t *ctx = arg;
+	ctx->is_dfxml_sent = 1;
 }
 
 /* vim: set noet ft=c: */
