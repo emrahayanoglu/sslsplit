@@ -68,6 +68,9 @@ int log_preinit(opts_t *) NONNULL(1) WUNRES;
 int log_init(opts_t *) NONNULL(1) WUNRES;
 void log_fini(void);
 
+int write_dfxml_on_file(log_content_ctx_t *, char *, time_t, time_t,
+						char *, char *, char *, char *, char *,char *);
+
 #endif /* !LOG_H */
 
 /* vim: set noet ft=c: */

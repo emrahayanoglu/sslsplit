@@ -89,6 +89,7 @@ typedef struct opts {
 	char *connectlog;
 	char *contentlog;
 	char *dfxml_out;
+	unsigned int max_delay_for_dfxml;
 	unsigned int max_bytes;
 	CONST_SSL_METHOD *(*sslmethod)(void);
 	X509 *cacrt;

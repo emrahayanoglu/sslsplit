@@ -784,4 +784,47 @@ log_fini(void)
 		log_connect_close();
 }
 
+/*
+ * Writes dfml file to provided dfxml file location with given parameters:
+ * filename, start_time, end_time, src_ip, dst_ip, mac_dadr, mac_sadr,
+ * srcport, dstport
+ */
+
+int 
+write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_conn, time_t end_conn,
+						char *src_ip, char *dst_ip, char *mac_daddr, char *mac_saddr, char *srcport,char *dstport)
+{
+	const char *format = "<fileobject><filename>%s</filename><filesize>%l</filesize><sslsplit startime='%s' endtime='%s' \
+						 src_ipn='%s' dst_ipn='%s' mac_daddr='%s' mac_saddr='%s' packets='4' \
+						 srcport='%s' dstport='%s' family='2' /></fileobject>";
+	char *out_dfxml_str;
+	
+	//Construct the XML tag
+	off_t file_size = sys_get_filesize(ctx->u.dir.filename);
+
+	char start_time_str[24];
+	strftime(start_time_str, sizeof(start_time_str),"%Y%m%dT%H%M%SZ", gmtime(&start_conn));
+
+	char end_time_str[24];
+	strftime(end_time_str, sizeof(end_time_str),"%Y%m%dT%H%M%SZ", gmtime(&end_conn));
+
+	asprintf(&out_dfxml_str, format, ctx->u.dir.filename, file_size, start_time_str,
+				end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr, srcport, dstport);
+	//Write on the Pipe
+	int fd;
+
+	fd = open(out_filename, O_WRONLY | O_APPEND);
+
+	if(fd < 0){
+		log_err_printf("Cannot open file for writing out the dfxml");
+		return -1;
+	}
+
+	FILE *stream;
+	stream = fdopen(fd, "w");
+	fprintf(stream, out_dfxml_str);
+	fclose(stream);
+	return 0;
+}
+
 /* vim: set noet ft=c: */

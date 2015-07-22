@@ -149,6 +149,7 @@ main_usage(void)
 "  -L logfile   content log: full data to file or named pipe (excludes -S/-F)\n"
 "  -S logdir    content log: full data to separate files in dir (excludes -L/-F)\n"
 "  -X filename  DFXML output to filename (Active when full data to separate files is enabled)\n"
+"  -f seconds   Dump flow to DFXML after this delay latest\n"
 "  -F pathspec  content log: full data to sep files with %% subst (excl. -L/-S):\n"
 "               %%T - initial connection time as an ISO 8601 UTC timestamp\n"
 "               %%d - dest address:port\n"
@@ -277,7 +278,7 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv, OPT_g OPT_G OPT_Z OPT_i
-	                    "k:c:C:K:t:OPBs:r:R:e:Eu:m:j:p:b:l:L:S:F:dDVh")) != -1) {
+	                    "k:c:C:K:t:OPBs:r:R:e:Eu:m:j:p:b:l:L:S:X:f:F:dDVh")) != -1) {
 		switch (ch) {
 			case 'c':
 				if (opts->cacrt)
@@ -525,6 +526,14 @@ main(int argc, char *argv[])
 				}
 				else {
 					fprintf(stderr, "Full data to separate file is not enabled");
+					exit(EXIT_FAILURE);
+				}
+				break;
+			case 'f':
+				if (opts->dfxml_out)
+					opts->max_delay_for_dfxml = strtol(strdup(optarg), NULL, 10);
+				else {
+					fprintf(stderr, "Writing out to DFXML file is not enabled");
 					exit(EXIT_FAILURE);
 				}
 				break;

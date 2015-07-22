@@ -52,6 +52,7 @@ opts_new(void)
 	opts->chain = sk_X509_new_null();
 	opts->sslmethod = SSLv23_method;
 	opts->max_bytes = 0;
+	opts->max_delay_for_dfxml = 0;
 	return opts;
 }
 
