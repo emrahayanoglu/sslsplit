@@ -100,6 +100,9 @@ opts_free(opts_t *opts)
 	if (opts->pidfile) {
 		free(opts->pidfile);
 	}
+	if (opts->interface) {
+		free(opts->interface);
+	}
 	if (opts->connectlog) {
 		free(opts->connectlog);
 	}

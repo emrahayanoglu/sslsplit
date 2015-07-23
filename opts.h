@@ -88,6 +88,7 @@ typedef struct opts {
 	char *pidfile;
 	char *connectlog;
 	char *contentlog;
+	char *interface;
 	char *dfxml_out;
 	unsigned int max_delay_for_dfxml;
 	unsigned int max_bytes;

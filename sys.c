@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <sys/file.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -45,6 +46,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <linux/if.h>
 
 #ifndef _SC_NPROCESSORS_ONLN
 #include <sys/sysctl.h>
@@ -514,6 +516,59 @@ sys_get_filesize(const char *filename)
 		               filename, strerror(errno));
 
 	return -1;
+}
+
+/*
+ * Get the ip and port from the src string
+ */
+char **
+sys_get_ip_and_port(const char *src)
+{
+	char *copy = strdup(src);
+	char **result = malloc(sizeof(char*) * 2);
+	char *ip;
+
+	ip = strtok(copy, ":");
+
+	int ip_len = strlen(ip);
+
+	*result = (char *)malloc(sizeof(char) * (ip_len - 2));
+
+	strncpy(*result, ip + 1, ip_len - 2);
+
+	if(ip != NULL){
+		*(result + 1) = strtok(NULL, ":");
+		if(*(result + 1) != NULL){
+        	return result;
+		}
+	}
+
+	free(result);
+	return NULL;
+}
+
+
+/*
+ * Get the mac address from the provided interface and file descriptor
+ */
+char * 
+sys_get_mac_address(const char *interface, int fd)
+{
+	char *ret = malloc(sizeof(char) * 13);
+
+	struct ifreq s;
+	strcpy(s.ifr_name, interface);
+	if(fd >= 0 && ret && ioctl(fd, SIOCGIFHWADDR, &s)){
+		int i;
+		for (i = 0; i < 6; ++i)
+			snprintf(ret + i * 2, 13 - i * 2, "%02x", (unsigned char) s.ifr_addr.sa_data[i]);
+	}
+	else{
+		free(ret);
+		return NULL;
+	}
+
+	return ret;
 }
 
 /* vim: set noet ft=c: */

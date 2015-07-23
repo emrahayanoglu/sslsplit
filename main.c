@@ -148,8 +148,9 @@ main_usage(void)
 "  -l logfile   connect log: log one line summary per connection to logfile\n"
 "  -L logfile   content log: full data to file or named pipe (excludes -S/-F)\n"
 "  -S logdir    content log: full data to separate files in dir (excludes -L/-F)\n"
-"  -X filename  DFXML output to filename (Active when full data to separate files is enabled)\n"
-"  -f seconds   Dump flow to DFXML after this delay latest\n"
+"  -I interface ethernet interface that will be checked for mac addresses\n"
+"  -X filename  DFXML output to filename (Active when full data to separate files is enabled) (requires -I, -S)\n"
+"  -f seconds   Dump flow to DFXML after this delay latest(requires -X, -I, -S)\n"
 "  -F pathspec  content log: full data to sep files with %% subst (excl. -L/-S):\n"
 "               %%T - initial connection time as an ISO 8601 UTC timestamp\n"
 "               %%d - dest address:port\n"
@@ -278,7 +279,7 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv, OPT_g OPT_G OPT_Z OPT_i
-	                    "k:c:C:K:t:OPBs:r:R:e:Eu:m:j:p:b:l:L:S:X:f:F:dDVh")) != -1) {
+	                    "k:c:C:K:t:OPBs:r:R:e:Eu:m:j:p:b:l:L:S:I:X:f:F:dDVh")) != -1) {
 		switch (ch) {
 			case 'c':
 				if (opts->cacrt)
@@ -506,6 +507,13 @@ main(int argc, char *argv[])
 					oom_die(argv0);
 				opts->contentlog_isdir = 0;
 				opts->contentlog_isspec = 0;
+				break;
+			case 'I':
+				if (opts->interface)
+					free(opts->interface);
+				opts->interface = strdup(optarg);
+				if (!opts->interface)
+					oom_die(argv0);
 				break;
 			case 'S':
 				if (opts->contentlog)

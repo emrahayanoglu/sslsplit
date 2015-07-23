@@ -794,9 +794,9 @@ int
 write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_conn, time_t end_conn,
 						char *src_ip, char *dst_ip, char *mac_daddr, char *mac_saddr, char *srcport,char *dstport)
 {
-	const char *format = "<fileobject><filename>%s</filename><filesize>%l</filesize><sslsplit startime='%s' endtime='%s' \
-						 src_ipn='%s' dst_ipn='%s' mac_daddr='%s' mac_saddr='%s' packets='4' \
-						 srcport='%s' dstport='%s' family='2' /></fileobject>";
+	const char *format = "<fileobject><filename>%s</filename><filesize>%l</filesize><sslsplit startime='%s' endtime='%s' "
+						 "src_ipn='%s' dst_ipn='%s' mac_daddr='%s' mac_saddr='%s' packets='4' "
+						 "srcport='%s' dstport='%s' family='2' /></fileobject>";
 	char *out_dfxml_str;
 	
 	//Construct the XML tag

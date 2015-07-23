@@ -1094,11 +1094,8 @@ bufferevent_free_and_close_fd(struct bufferevent *bev, pxy_conn_ctx_t *ctx)
 	}
 #endif /* DEBUG_PROXY */
 
-	/* set the end connection time */
-	ctx->end_conn_time = time(NULL);
-
-	/* delete the delay timer event for dfxml out */
-	event_del(ctx->ev_dfxml);
+	/* Send the DFXML file to provided file */
+	pxy_send_dfxml(fd, ctx);
 
 	bufferevent_free(bev); /* does not free SSL unless the option
 	                          BEV_OPT_CLOSE_ON_FREE was set */
@@ -2359,9 +2356,40 @@ memout:
 static void 
 pxy_dfxml_timeout(evutil_socket_t fd, short what, void *arg)
 {
-	//Make DFXML output to the provided file through log context
+	//Make DFXML output to the provided file through log contex
+	pxy_send_dfxml(fd, arg);
+}
+
+
+void 
+pxy_send_dfxml(evutil_socket_t fd, void *arg)
+{
 	pxy_conn_ctx_t *ctx = arg;
-	ctx->is_dfxml_sent = 1;
+	if (ctx->is_dfxml_sent == 0)
+	{
+		//Set the connection time for end
+		ctx->end_conn_time = time(NULL);
+		/* Send the DFXML to output file through log context */
+		ctx->is_dfxml_sent = 1;
+
+		char **src_result = sys_get_ip_and_port(ctx->src_str);
+		char **dst_result = sys_get_ip_and_port(ctx->dst_str);
+
+		char *mac_address = sys_get_mac_address(ctx->opts->interface, fd);
+
+		write_dfxml_on_file(ctx->logctx, ctx->opts->dfxml_out, ctx->start_conn_time, 
+							ctx->end_conn_time, src_result[0], dst_result[0], 
+							mac_address , mac_address, src_result[1],
+							dst_result[1]);
+
+		/* delete and free the delay timer event for dfxml out */
+		if (ctx->ev_dfxml)
+		{
+			/* code */
+			event_del(ctx->ev_dfxml);
+			event_free(ctx->ev_dfxml);
+		}
+	}
 }
 
 /* vim: set noet ft=c: */
