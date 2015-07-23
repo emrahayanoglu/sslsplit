@@ -532,8 +532,6 @@ sys_get_ip_and_port(const char *src)
 
 	int ip_len = strlen(ip);
 
-	*result = (char *)malloc(sizeof(char) * (ip_len - 2));
-
 	strncpy(*result, ip + 1, ip_len - 2);
 
 	if(ip != NULL){
@@ -543,7 +541,6 @@ sys_get_ip_and_port(const char *src)
 		}
 	}
 
-	free(result);
 	return NULL;
 }
 
@@ -554,14 +551,20 @@ sys_get_ip_and_port(const char *src)
 char * 
 sys_get_mac_address(const char *interface, int fd)
 {
-	char *ret = malloc(sizeof(char) * 13);
+	char *ret = malloc(sizeof(char) * 18);
 
 	struct ifreq s;
 	strcpy(s.ifr_name, interface);
 	if(fd >= 0 && ret && ioctl(fd, SIOCGIFHWADDR, &s)){
 		int i;
-		for (i = 0; i < 6; ++i)
-			snprintf(ret + i * 2, 13 - i * 2, "%02x", (unsigned char) s.ifr_addr.sa_data[i]);
+		for (i = 0; i < 6; ++i){
+			if(i < 5){
+				snprintf(ret + i * 3, 18 - i * 3, "%02x:", (unsigned char) s.ifr_addr.sa_data[i]);
+			}
+			else{
+				snprintf(ret + i * 3, 18 - i * 3, "%02x", (unsigned char) s.ifr_addr.sa_data[i]);	
+			}
+		}
 	}
 	else{
 		free(ret);

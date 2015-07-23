@@ -527,13 +527,13 @@ main(int argc, char *argv[])
 			case 'X':
 				if (opts->dfxml_out)
 					free(opts->dfxml_out);
-				if (opts->contentlog_isdir == 1) {
+				if (opts->contentlog_isdir == 1 && opts->interface) {
 					opts->dfxml_out = strdup(optarg);
 					if (!opts->dfxml_out)
 						oom_die(argv0);
 				}
 				else {
-					fprintf(stderr, "Full data to separate file is not enabled");
+					fprintf(stderr, "DFXML out requires both -S and -I\n");
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -541,7 +541,7 @@ main(int argc, char *argv[])
 				if (opts->dfxml_out)
 					opts->max_delay_for_dfxml = strtol(strdup(optarg), NULL, 10);
 				else {
-					fprintf(stderr, "Writing out to DFXML file is not enabled");
+					fprintf(stderr, "DFXML delay mechanism requires -X, -S and -I\n");
 					exit(EXIT_FAILURE);
 				}
 				break;

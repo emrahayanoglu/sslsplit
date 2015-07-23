@@ -792,11 +792,11 @@ log_fini(void)
 
 int 
 write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_conn, time_t end_conn,
-						char *src_ip, char *dst_ip, char *mac_daddr, char *mac_saddr, char *srcport,char *dstport)
+						char *src_ip, char *dst_ip, char *mac_daddr, char *mac_saddr)
 {
-	const char *format = "<fileobject><filename>%s</filename><filesize>%l</filesize><sslsplit startime='%s' endtime='%s' "
+	const char *format = "<fileobject><filename>%s</filename><filesize></filesize><sslsplit startime='%s' endtime='%s' "
 						 "src_ipn='%s' dst_ipn='%s' mac_daddr='%s' mac_saddr='%s' packets='4' "
-						 "srcport='%s' dstport='%s' family='2' /></fileobject>";
+						 " family='2' /></fileobject>\n";
 	char *out_dfxml_str;
 	
 	//Construct the XML tag
@@ -805,7 +805,7 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 	char start_time_str[24];
 	int n;
 	
-	n = strftime(start_time_str, sizeof(start_time_str),"%Y%m%dT%H%M%SZ", gmtime(&start_conn));
+	n = strftime(start_time_str, sizeof(start_time_str),"%Y-%m-%dT%H:%M:%SZ", gmtime(&start_conn));
 	
 	if (n == 0) {
 		log_err_printf("Error from strftime(): buffer too small\n");
@@ -815,27 +815,22 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 	char end_time_str[24];
 	n = 1;
 
-	n = strftime(end_time_str, sizeof(end_time_str),"%Y%m%dT%H%M%SZ", gmtime(&end_conn));
+	n = strftime(end_time_str, sizeof(end_time_str),"%Y-%m-%dT%H:%M:%SZ", gmtime(&end_conn));
 
 	if (n == 0) {
 		log_err_printf("Error from strftime(): buffer too small\n");
 		return -1;
 	}
 
-	asprintf(&out_dfxml_str, format, ctx->u.dir.filename, file_size, start_time_str,
-				end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr, srcport, dstport);
+	asprintf(&out_dfxml_str, format, ctx->u.dir.filename, start_time_str,
+				end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr);
 	//Write on the Pipe
-	int fd;
-
-	fd = open(out_filename, O_WRONLY | O_APPEND);
-
-	if(fd < 0){
-		log_err_printf("Cannot open file for writing out the dfxml");
+	FILE *stream;
+	stream = fopen(out_filename, "a");
+	if (stream == NULL) {
+		log_err_printf("Cannot open file for writing out the dfxml\n");
 		return -1;
 	}
-
-	FILE *stream;
-	stream = fdopen(fd, "w");
 	fprintf(stream, out_dfxml_str);
 	fclose(stream);
 	return 0;

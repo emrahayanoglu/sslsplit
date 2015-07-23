@@ -1801,16 +1801,16 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 		ctx->start_conn_time = time(NULL);
 
 		/* if the dfxml out is set and delay for the dfxml is also set then start time */
-		if (ctx->opts->max_delay_for_dfxml > 0) {
-			struct timeval timer_delay = {ctx->opts->max_delay_for_dfxml, 0};
+		// if (ctx->opts->max_delay_for_dfxml > 0) {
+		// 	struct timeval timer_delay = {ctx->opts->max_delay_for_dfxml, 0};
 
-			ctx->ev_dfxml = event_new(ctx->evbase, -1, EV_PERSIST, pxy_dfxml_timeout, NULL);
-			if (!ctx->ev_dfxml)
-				log_err_printf("Timer event for DFXML "
-								"out is not created!\n");
-				return;
-			evtimer_add(ctx->ev_dfxml, &timer_delay);
-		}
+		// 	ctx->ev_dfxml = event_new(ctx->evbase, -1, EV_PERSIST, pxy_dfxml_timeout, NULL);
+		// 	if (!ctx->ev_dfxml)
+		// 		log_err_printf("Timer event for DFXML "
+		// 						"out is not created!\n");
+		// 		return;
+		// 	evtimer_add(ctx->ev_dfxml, &timer_delay);
+		// }
 
 		/* wrap client-side socket in an eventbuffer */
 		if (ctx->spec->ssl && !ctx->passthrough) {
@@ -2372,15 +2372,14 @@ pxy_send_dfxml(evutil_socket_t fd, void *arg)
 		/* Send the DFXML to output file through log context */
 		ctx->is_dfxml_sent = 1;
 
-		char **src_result = sys_get_ip_and_port(ctx->src_str);
-		char **dst_result = sys_get_ip_and_port(ctx->dst_str);
+		//char **src_result = sys_get_ip_and_port(ctx->src_str);
+		//char **dst_result = sys_get_ip_and_port(ctx->dst_str);
 
-		char *mac_address = sys_get_mac_address(ctx->opts->interface, fd);
+		char *mac_address = sys_get_mac_address(ctx->opts->interface, ctx->fd);
 
 		write_dfxml_on_file(ctx->logctx, ctx->opts->dfxml_out, ctx->start_conn_time, 
-							ctx->end_conn_time, src_result[0], dst_result[0], 
-							mac_address , mac_address, src_result[1],
-							dst_result[1]);
+							ctx->end_conn_time, ctx->src_str, ctx->dst_str, 
+							mac_address , mac_address);
 
 		/* delete and free the delay timer event for dfxml out */
 		if (ctx->ev_dfxml)
