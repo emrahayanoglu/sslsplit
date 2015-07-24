@@ -229,6 +229,8 @@ pxy_conn_ctx_free(pxy_conn_ctx_t *ctx) NONNULL(1);
 static void
 pxy_conn_ctx_free(pxy_conn_ctx_t *ctx)
 {
+	pxy_check_time(ctx);
+
 #ifdef DEBUG_PROXY
 	if (OPTS_DEBUG(ctx->opts)) {
 		log_dbg_printf("%p             pxy_conn_ctx_free\n",
@@ -311,9 +313,6 @@ static int pxy_ossl_servername_cb(SSL *ssl, int *al, void *arg);
 static int pxy_ossl_sessnew_cb(SSL *, SSL_SESSION *);
 static void pxy_ossl_sessremove_cb(SSL_CTX *, SSL_SESSION *);
 static SSL_SESSION * pxy_ossl_sessget_cb(SSL *, unsigned char *, int, int *);
-
-/* forward declaration of libevent callback for dfxml timer */
-static void pxy_dfxml_timeout(evutil_socket_t, short, void *);
 
 /*
  * Dump information on a certificate to the debug log.
@@ -1423,13 +1422,13 @@ deny:
 						lb = logbuf_new_alloc(new_size, NULL, NULL);
 						lb->buf = (unsigned char*)new_buf;
 						ctx->bytes_count += new_size;
-
 						if (log_content_submit(ctx->logctx, lb,
 						                       0/*resp*/) == -1) {
 							logbuf_free(lb);
 							log_err_printf("Warning: Content log "
 							               "submission failed\n");
 						}
+						pxy_check_time(ctx);
 					}
 				}
 				else{
@@ -1439,6 +1438,7 @@ deny:
 						log_err_printf("Warning: Content log "
 						               "submission failed\n");
 					}
+					pxy_check_time(ctx);
 				}
 			}
 		}
@@ -1471,6 +1471,7 @@ deny:
 						log_err_printf("Warning: Content log "
 						               "submission failed\n");
 					}
+					pxy_check_time(ctx);
 				}
 			}
 			else{
@@ -1480,6 +1481,7 @@ deny:
 					log_err_printf("Warning: Content log "
 					               "submission failed\n");
 				}
+				pxy_check_time(ctx);
 			}
 		}
 	}
@@ -1588,6 +1590,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 						log_err_printf("Warning: Content log "
 						               "submission failed\n");
 					}
+					pxy_check_time(ctx);
 				}
 			}
 			else{
@@ -1597,6 +1600,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 					log_err_printf("Warning: Content log "
 					               "submission failed\n");
 				}
+				pxy_check_time(ctx);
 			}
 		}
 		if (!ctx->seen_req_header)
@@ -1658,6 +1662,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 						log_err_printf("Warning: Content log "
 						               "submission failed\n");
 					}
+					pxy_check_time(ctx);
 				}
 			}
 			else{
@@ -1667,6 +1672,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 					log_err_printf("Warning: Content log "
 					               "submission failed\n");
 				}
+				pxy_check_time(ctx);
 			}
 		}
 		if (!ctx->seen_resp_header)
@@ -1705,6 +1711,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 						log_err_printf("Warning: Content log "
 						               "submission failed\n");
 					}
+					pxy_check_time(ctx);
 				}
 			}
 			else{
@@ -1714,6 +1721,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 					log_err_printf("Warning: Content log "
 					               "submission failed\n");
 				}
+				pxy_check_time(ctx);
 			}
 		}
 	}
@@ -1799,18 +1807,6 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 
 		/* set the start connection time */
 		ctx->start_conn_time = time(NULL);
-
-		/* if the dfxml out is set and delay for the dfxml is also set then start time */
-		// if (ctx->opts->max_delay_for_dfxml > 0) {
-		// 	struct timeval timer_delay = {ctx->opts->max_delay_for_dfxml, 0};
-
-		// 	ctx->ev_dfxml = event_new(ctx->evbase, -1, EV_PERSIST, pxy_dfxml_timeout, NULL);
-		// 	if (!ctx->ev_dfxml)
-		// 		log_err_printf("Timer event for DFXML "
-		// 						"out is not created!\n");
-		// 		return;
-		// 	evtimer_add(ctx->ev_dfxml, &timer_delay);
-		// }
 
 		/* wrap client-side socket in an eventbuffer */
 		if (ctx->spec->ssl && !ctx->passthrough) {
@@ -2350,14 +2346,24 @@ memout:
 
 
 /*
- * Whenever dfxml timer is triggered, information about current log
- * is written out to the DFXML out file
+ * Function checks the time difference and if 
+ * the time exceeds max delay then send dfxml
  */
-static void 
-pxy_dfxml_timeout(evutil_socket_t fd, short what, void *arg)
+void 
+pxy_check_time(void *arg)
 {
-	//Make DFXML output to the provided file through log contex
-	pxy_send_dfxml(fd, arg);
+	pxy_conn_ctx_t *ctx = arg;
+	if (ctx->opts->max_delay_for_dfxml > 0) {
+
+		time_t now = time(NULL);
+		int diff_t;
+
+		diff_t = (int)difftime(ctx->start_conn_time, now);
+
+		if(diff_t > ctx->opts->max_delay_for_dfxml){
+			pxy_send_dfxml(ctx->fd, ctx);
+		}
+	}
 }
 
 

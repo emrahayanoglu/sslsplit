@@ -45,6 +45,8 @@ void pxy_conn_setup(evutil_socket_t, struct sockaddr *, int,
 
 void pxy_send_dfxml(evutil_socket_t, void *);
 
+void pxy_check_time(void *);
+
 #endif /* !PXYCONN_H */
 
 /* vim: set noet ft=c: */
