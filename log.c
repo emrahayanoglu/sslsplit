@@ -800,7 +800,7 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 	char *out_dfxml_str;
 	
 	//Construct the XML tag
-	off_t file_size = sys_get_filesize(ctx->u.dir.filename);
+	UNUSED off_t file_size = sys_get_filesize(ctx->u.dir.filename);
 
 	char start_time_str[24];
 	int n;

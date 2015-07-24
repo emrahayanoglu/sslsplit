@@ -134,7 +134,12 @@ typedef struct pxy_conn_ctx {
 
 	/* log strings from socket */
 	char *src_str;
+	char *src_host;
+	char *src_port;
+
 	char *dst_str;
+	char *dst_host;
+	char *dst_port;
 
 	/* connection start time and end time*/
 	time_t start_conn_time;
@@ -241,8 +246,20 @@ pxy_conn_ctx_free(pxy_conn_ctx_t *ctx)
 	if (ctx->src_str) {
 		free(ctx->src_str);
 	}
+	if (ctx->src_host) {
+		free(ctx->src_host);
+	}
+	if (ctx->src_port) {
+		free(ctx->src_port);
+	}
 	if (ctx->dst_str) {
 		free(ctx->dst_str);
+	}
+	if (ctx->dst_host) {
+		free(ctx->dst_host);
+	}
+	if (ctx->dst_port) {
+		free(ctx->dst_port);
 	}
 	if (ctx->http_method) {
 		free(ctx->http_method);
@@ -1847,6 +1864,12 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 			ctx->dst_str = sys_sockaddr_str((struct sockaddr *)
 			                                &ctx->addr,
 			                                ctx->addrlen);
+			ctx->dst_host = sys_sockaddr_str_host((struct sockaddr *)
+			                                &ctx->addr,
+			                                ctx->addrlen);
+			ctx->dst_port = sys_sockaddr_str_port((struct sockaddr *)
+			                                &ctx->addr,
+			                                ctx->addrlen);
 			if (!ctx->dst_str) {
 				ctx->enomem = 1;
 				pxy_conn_terminate_free(ctx);
@@ -2314,6 +2337,8 @@ pxy_conn_setup(evutil_socket_t fd,
 	/* prepare logging, part 1 */
 	if (WANT_CONNECT_LOG(ctx) || WANT_CONTENT_LOG(ctx)) {
 		ctx->src_str = sys_sockaddr_str(peeraddr, peeraddrlen);
+		ctx->src_host = sys_sockaddr_str_host(peeraddr, peeraddrlen);
+		ctx->src_port = sys_sockaddr_str_port(peeraddr, peeraddrlen);
 		if (!ctx->src_str)
 			goto memout;
 #ifdef HAVE_LOCAL_PROCINFO
@@ -2368,7 +2393,7 @@ pxy_check_time(void *arg)
 
 
 void 
-pxy_send_dfxml(evutil_socket_t fd, void *arg)
+pxy_send_dfxml(UNUSED evutil_socket_t fd, void *arg)
 {
 	pxy_conn_ctx_t *ctx = arg;
 	if (ctx->is_dfxml_sent == 0)
@@ -2378,14 +2403,12 @@ pxy_send_dfxml(evutil_socket_t fd, void *arg)
 		/* Send the DFXML to output file through log context */
 		ctx->is_dfxml_sent = 1;
 
-		//char **src_result = sys_get_ip_and_port(ctx->src_str);
-		//char **dst_result = sys_get_ip_and_port(ctx->dst_str);
-
-		char *mac_address = sys_get_mac_address(ctx->opts->interface, ctx->fd);
+		char *mac_address_src = sys_get_mac_address_from_arp(ctx->src_host);
+		char *mac_address_dst = sys_get_mac_address(ctx->opts->interface, ctx->fd);
 
 		write_dfxml_on_file(ctx->logctx, ctx->opts->dfxml_out, ctx->start_conn_time, 
-							ctx->end_conn_time, ctx->src_str, ctx->dst_str, 
-							mac_address , mac_address);
+							ctx->end_conn_time, ctx->src_host, ctx->dst_host, 
+							mac_address_src , mac_address_dst);
 
 		/* delete and free the delay timer event for dfxml out */
 		if (ctx->ev_dfxml)

@@ -43,7 +43,7 @@ void pxy_conn_setup(evutil_socket_t, struct sockaddr *, int,
                     pxy_thrmgr_ctx_t *, proxyspec_t *, opts_t *)
                     NONNULL(2,4,5,6);
 
-void pxy_send_dfxml(evutil_socket_t, void *);
+void pxy_send_dfxml(UNUSED evutil_socket_t, void *);
 
 void pxy_check_time(void *);
 

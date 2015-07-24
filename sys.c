@@ -58,6 +58,17 @@
 
 #include <event2/util.h>
 
+#define xstr(s) str(s)
+#define str(s) #s
+
+#define ARP_CACHE		"/proc/net/arp"
+#define ARP_STRING_LEN	1023
+#define ARP_BUFFER_LEN	(ARP_STRING_LEN + 1)
+
+#define ARP_LINE_FORMAT	"%" xstr(ARP_STRING_LEN) "s %*s %*s " \
+ 						"%" xstr(ARP_STRING_LEN) "s %*s " \
+ 						"%" xstr(ARP_STRING_LEN) "s"
+
 /*
  * Permanently drop from root privileges to an unprivileged user account.
  * Sets the real, effective and stored user and group ID and the list of
@@ -366,6 +377,55 @@ sys_sockaddr_str(struct sockaddr *addr, socklen_t addrlen)
 	return buf;
 }
 
+char * 
+sys_sockaddr_str_host(struct sockaddr *addr, socklen_t addrlen)
+{
+	char host[INET6_ADDRSTRLEN], serv[6];
+	char *buf;
+	int rv;
+
+	buf = malloc(sizeof(char) * INET6_ADDRSTRLEN);
+	if (!buf) {
+		log_err_printf("Cannot allocate memory\n");
+		return NULL;
+	}
+	rv = getnameinfo(addr, addrlen, host, sizeof(host), serv, sizeof(serv),
+	                 NI_NUMERICHOST | NI_NUMERICSERV);
+	if (rv != 0) {
+		log_err_printf("Cannot get nameinfo for socket address: %s\n",
+		               gai_strerror(rv));
+		free(buf);
+		return NULL;
+	}
+	snprintf(buf, INET6_ADDRSTRLEN, "%s", host);
+	return buf;
+}
+
+
+char * 
+sys_sockaddr_str_port(struct sockaddr *addr, socklen_t addrlen)
+{
+	char host[INET6_ADDRSTRLEN], serv[6];
+	char *buf;
+	int rv;
+
+	buf = malloc(sizeof(char) * 6);
+	if (!buf) {
+		log_err_printf("Cannot allocate memory\n");
+		return NULL;
+	}
+	rv = getnameinfo(addr, addrlen, host, sizeof(host), serv, sizeof(serv),
+	                 NI_NUMERICHOST | NI_NUMERICSERV);
+	if (rv != 0) {
+		log_err_printf("Cannot get nameinfo for socket address: %s\n",
+		               gai_strerror(rv));
+		free(buf);
+		return NULL;
+	}
+	snprintf(buf, 6, "%s", serv);
+	return buf;
+}
+
 /*
  * Returns 1 if path points to an existing directory node in the filesystem.
  * Returns 0 if path is NULL, does not exist, or points to a file of some kind.
@@ -572,6 +632,43 @@ sys_get_mac_address(const char *interface, int fd)
 	}
 
 	return ret;
+}
+
+
+/*
+ * Search and fetch the mac address from the arp table
+ * according to the provided ip address
+ */
+char * 
+sys_get_mac_address_from_arp(const char *ip_addr)
+{
+	char *ret = malloc(sizeof(char) * ARP_BUFFER_LEN);
+
+	FILE *arpCache = fopen(ARP_CACHE, "r");
+	if (!arpCache)
+	{
+		log_err_printf("Arp Cache: Failed to open file \"" ARP_CACHE "\"");
+		return NULL;
+	}
+
+	char header[ARP_BUFFER_LEN];
+	if(!fgets(header, sizeof(header), arpCache))
+	{
+		return NULL;
+	}
+
+	char ipAddr[ARP_BUFFER_LEN], hwAddr[ARP_BUFFER_LEN], device[ARP_BUFFER_LEN];
+	while(3 == fscanf(arpCache, ARP_LINE_FORMAT, ipAddr, hwAddr, device))
+	{
+		if(strcmp(ip_addr, ipAddr) == 0)
+		{
+			strcpy(ret, hwAddr);
+			fclose(arpCache);
+			return ret;
+		}
+	}
+	fclose(arpCache);
+	return NULL;
 }
 
 /* vim: set noet ft=c: */
