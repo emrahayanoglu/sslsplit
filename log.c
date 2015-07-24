@@ -43,6 +43,7 @@
 #include <libgen.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 /*
  * Centralized logging code multiplexing thread access to the logger based
@@ -414,6 +415,11 @@ log_content_open(log_content_ctx_t **pctx, opts_t *opts,
 		char timebuf[24];
 		time_t epoch;
 		struct tm *utc;
+		struct timeval curTime;
+		char currentTime[84] = "";
+
+		gettimeofday(&curTime, NULL);
+		int milli = curTime.tv_usec / 1000;
 
 		if (time(&epoch) == -1) {
 			log_err_printf("Failed to get time\n");
@@ -425,13 +431,16 @@ log_content_open(log_content_ctx_t **pctx, opts_t *opts,
 			goto errout;
 		}
 		if (!strftime(timebuf, sizeof(timebuf),
-		              "%Y%m%dT%H%M%SZ", utc)) {
+		              "%Y%m%dT%H%M%S", utc)) {
 			log_err_printf("Failed to format time: %s (%i)\n",
 			               strerror(errno), errno);
 			goto errout;
 		}
+
+		sprintf(currentTime, "%s:%dZ", timebuf, milli);
+
 		if (asprintf(&ctx->u.dir.filename, "%s/%s-%s-%s.log",
-		             opts->contentlog, timebuf, srcaddr, dstaddr) < 0) {
+		             opts->contentlog, currentTime, srcaddr, dstaddr) < 0) {
 			log_err_printf("Failed to format filename: %s (%i)\n",
 			               strerror(errno), errno);
 			goto errout;
@@ -550,7 +559,7 @@ log_content_spec_opencb(UNUSED void *fh)
 
 	filename2 = strdup(ctx->u.spec.filename);
 	if (!filename2) {
-		log_err_printf("Could not duplicate filname: %s (%i)\n",
+		log_err_printf("Could not duplicate filename: %s (%i)\n",
 		               strerror(errno), errno);
 		return -1;
 	}
@@ -792,11 +801,12 @@ log_fini(void)
 
 int 
 write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_conn, time_t end_conn,
-						char *src_ip, char *dst_ip, char *mac_daddr, char *mac_saddr)
+						char *src_ip, char *dst_ip, char *mac_daddr, char *mac_saddr, char *srcport,
+						char *dstport)
 {
 	const char *format = "<fileobject><filename>%s</filename><filesize></filesize><sslsplit startime='%s' endtime='%s' "
 						 "src_ipn='%s' dst_ipn='%s' mac_daddr='%s' mac_saddr='%s' packets='4' "
-						 " family='2' /></fileobject>\n";
+						 " srcport='%s' dstport='%s' family='2' /></fileobject>\n";
 	char *out_dfxml_str;
 	
 	//Construct the XML tag
@@ -823,7 +833,8 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 	}
 
 	asprintf(&out_dfxml_str, format, ctx->u.dir.filename, start_time_str,
-				end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr);
+				end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr,
+				srcport, dstport);
 	//Write on the Pipe
 	FILE *stream;
 	stream = fopen(out_filename, "a");

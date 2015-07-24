@@ -2408,7 +2408,8 @@ pxy_send_dfxml(UNUSED evutil_socket_t fd, void *arg)
 
 		write_dfxml_on_file(ctx->logctx, ctx->opts->dfxml_out, ctx->start_conn_time, 
 							ctx->end_conn_time, ctx->src_host, ctx->dst_host, 
-							mac_address_src , mac_address_dst);
+							mac_address_src , mac_address_dst, ctx->src_port,
+							ctx->dst_port);
 
 		/* delete and free the delay timer event for dfxml out */
 		if (ctx->ev_dfxml)
