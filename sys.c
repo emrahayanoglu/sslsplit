@@ -578,32 +578,6 @@ sys_get_filesize(const char *filename)
 	return -1;
 }
 
-/*
- * Get the ip and port from the src string
- */
-char **
-sys_get_ip_and_port(const char *src)
-{
-	char *copy = strdup(src);
-	char **result = malloc(sizeof(char*) * 2);
-	char *ip;
-
-	ip = strtok(copy, ":");
-
-	int ip_len = strlen(ip);
-
-	strncpy(*result, ip + 1, ip_len - 2);
-
-	if(ip != NULL){
-		*(result + 1) = strtok(NULL, ":");
-		if(*(result + 1) != NULL){
-        	return result;
-		}
-	}
-
-	return NULL;
-}
-
 
 /*
  * Get the mac address from the provided interface and file descriptor
@@ -643,6 +617,8 @@ char *
 sys_get_mac_address_from_arp(const char *ip_addr)
 {
 	char *ret = malloc(sizeof(char) * ARP_BUFFER_LEN);
+
+	strcpy(ret, "00:00:00:00:00:00");
 
 	FILE *arpCache = fopen(ARP_CACHE, "r");
 	if (!arpCache)

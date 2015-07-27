@@ -174,9 +174,6 @@ typedef struct pxy_conn_ctx {
 	evutil_socket_t fd;
 	struct event *ev;
 
-	/* event for dfxml write timeout */
-	struct event *ev_dfxml;
-
 	/* verifier that checks whether dfxml is sent or not */
 	int is_dfxml_sent;
 
@@ -301,9 +298,6 @@ pxy_conn_ctx_free(pxy_conn_ctx_t *ctx)
 	}
 	if (ctx->ev) {
 		event_free(ctx->ev);
-	}
-	if (ctx->ev_dfxml) {
-		event_free(ctx->ev_dfxml);
 	}
 	if (ctx->sni) {
 		free(ctx->sni);
@@ -2410,14 +2404,6 @@ pxy_send_dfxml(UNUSED evutil_socket_t fd, void *arg)
 							ctx->end_conn_time, ctx->src_host, ctx->dst_host, 
 							mac_address_src , mac_address_dst, ctx->src_port,
 							ctx->dst_port);
-
-		/* delete and free the delay timer event for dfxml out */
-		if (ctx->ev_dfxml)
-		{
-			/* code */
-			event_del(ctx->ev_dfxml);
-			event_free(ctx->ev_dfxml);
-		}
 	}
 }
 

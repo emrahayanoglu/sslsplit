@@ -61,8 +61,6 @@ uint32_t sys_get_cpu_cores(void) WUNRES;
 
 off_t sys_get_filesize(const char *);
 
-char ** sys_get_ip_and_port(const char *);
-
 char * sys_get_mac_address(const char*, int);
 
 char * sys_get_mac_address_from_arp(const char *);
