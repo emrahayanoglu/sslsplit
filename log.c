@@ -416,10 +416,8 @@ log_content_open(log_content_ctx_t **pctx, opts_t *opts,
 		time_t epoch;
 		struct tm *utc;
 		struct timeval curTime;
-		char currentTime[84] = "";
 
 		gettimeofday(&curTime, NULL);
-		int milli = curTime.tv_usec / 1000;
 
 		if (time(&epoch) == -1) {
 			log_err_printf("Failed to get time\n");
@@ -431,16 +429,14 @@ log_content_open(log_content_ctx_t **pctx, opts_t *opts,
 			goto errout;
 		}
 		if (!strftime(timebuf, sizeof(timebuf),
-		              "%Y%m%dT%H%M%S", utc)) {
+		              "%Y-%m-%dT%H:%M:%S", utc)) {
 			log_err_printf("Failed to format time: %s (%i)\n",
 			               strerror(errno), errno);
 			goto errout;
 		}
 
-		sprintf(currentTime, "%s:%dZ", timebuf, milli);
-
 		if (asprintf(&ctx->u.dir.filename, "%s/%s-%s-%s.log",
-		             opts->contentlog, currentTime, srcaddr, dstaddr) < 0) {
+		             opts->contentlog, timebuf, srcaddr, dstaddr) < 0) {
 			log_err_printf("Failed to format filename: %s (%i)\n",
 			               strerror(errno), errno);
 			goto errout;

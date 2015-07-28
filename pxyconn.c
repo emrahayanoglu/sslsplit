@@ -146,7 +146,8 @@ typedef struct pxy_conn_ctx {
 	time_t end_conn_time;
 
 	/* log limits that is determined by option max bytes */
-	unsigned int bytes_count;
+	unsigned int bytes_count_res;
+	unsigned int bytes_count_req;
 
 	/* log strings from HTTP request */
 	char *http_method;
@@ -167,8 +168,9 @@ typedef struct pxy_conn_ctx {
 	pxy_conn_lproc_desc_t lproc;
 #endif /* HAVE_LOCAL_PROCINFO */
 
-	/* content log context */
-	log_content_ctx_t *logctx;
+	/* content log context*/
+	log_content_ctx_t *logctx_req;
+	log_content_ctx_t *logctx_res;
 
 	/* store fd and fd event while connected is 0 */
 	evutil_socket_t fd;
@@ -209,7 +211,8 @@ pxy_conn_ctx_new(proxyspec_t *spec, opts_t *opts,
 	memset(ctx, 0, sizeof(pxy_conn_ctx_t));
 	ctx->spec = spec;
 	ctx->opts = opts;
-	ctx->bytes_count = 0;
+	ctx->bytes_count_res = 0;
+	ctx->bytes_count_req = 0;
 	ctx->fd = fd;
 	ctx->thridx = pxy_thrmgr_attach(thrmgr, &ctx->evbase, &ctx->dnsbase);
 	ctx->thrmgr = thrmgr;
@@ -302,9 +305,14 @@ pxy_conn_ctx_free(pxy_conn_ctx_t *ctx)
 	if (ctx->sni) {
 		free(ctx->sni);
 	}
-	if (WANT_CONTENT_LOG(ctx) && ctx->logctx) {
-		if (log_content_close(&ctx->logctx) == -1) {
-			log_err_printf("Warning: Content log close failed\n");
+	if (WANT_CONTENT_LOG(ctx) && ctx->logctx_res) {
+		if (log_content_close(&ctx->logctx_res) == -1) {
+			log_err_printf("Warning: Response Content log close failed\n");
+		}
+	}
+	if (WANT_CONTENT_LOG(ctx) && ctx->logctx_req) {
+		if (log_content_close(&ctx->logctx_req) == -1) {
+			log_err_printf("Warning: Request Content log close failed\n");
 		}
 	}
 	free(ctx);
@@ -1424,16 +1432,12 @@ deny:
 			    (evbuffer_copyout(inbuf, lb->buf, lb->sz) != -1)) {
 				if (ctx->opts->max_bytes > 0) {
 					unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
-					if(ctx->bytes_count < max_char_count) {
-						unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
-						char *new_buf = malloc(sizeof(char) * new_size);
-						memcpy(new_buf, lb->buf, new_size);
-						logbuf_free(lb);
+					if(ctx->bytes_count_req < max_char_count) {
+						unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_req)) ? lb->sz : (max_char_count - ctx->bytes_count_req);
+						lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
 
-						lb = logbuf_new_alloc(new_size, NULL, NULL);
-						lb->buf = (unsigned char*)new_buf;
-						ctx->bytes_count += new_size;
-						if (log_content_submit(ctx->logctx, lb,
+						ctx->bytes_count_req += new_size;
+						if (log_content_submit(ctx->logctx_req, lb,
 						                       0/*resp*/) == -1) {
 							logbuf_free(lb);
 							log_err_printf("Warning: Content log "
@@ -1443,7 +1447,7 @@ deny:
 					}
 				}
 				else{
-					if (log_content_submit(ctx->logctx, lb,
+					if (log_content_submit(ctx->logctx_req, lb,
 					                       0/*resp*/) == -1) {
 						logbuf_free(lb);
 						log_err_printf("Warning: Content log "
@@ -1466,17 +1470,13 @@ deny:
 		if (lb) {
 			if (ctx->opts->max_bytes > 0) {
 				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
-				if(ctx->bytes_count < max_char_count) {
-					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
-					char *new_buf = malloc(sizeof(char) * new_size);
-					memcpy(new_buf, lb->buf, new_size);
-					logbuf_free(lb);
+				if(ctx->bytes_count_req < max_char_count) {
+					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_req)) ? lb->sz : (max_char_count - ctx->bytes_count_req);
+					lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
 
-					lb = logbuf_new_alloc(new_size, NULL, NULL);
-					lb->buf = (unsigned char*)new_buf;
-					ctx->bytes_count += new_size;
+					ctx->bytes_count_req += new_size;
 
-					if (log_content_submit(ctx->logctx, lb,
+					if (log_content_submit(ctx->logctx_req, lb,
 					                       0/*resp*/) == -1) {
 						logbuf_free(lb);
 						log_err_printf("Warning: Content log "
@@ -1486,7 +1486,7 @@ deny:
 				}
 			}
 			else{
-				if (log_content_submit(ctx->logctx, lb,
+				if (log_content_submit(ctx->logctx_req, lb,
 				                       0/*resp*/) == -1) {
 					logbuf_free(lb);
 					log_err_printf("Warning: Content log "
@@ -1585,17 +1585,13 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 		if (lb && WANT_CONTENT_LOG(ctx)) {
 			if (ctx->opts->max_bytes > 0) {
 				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
-				if(ctx->bytes_count < max_char_count) {
-					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
-					char *new_buf = malloc(sizeof(char) * new_size);
-					memcpy(new_buf, lb->buf, new_size);
-					logbuf_free(lb);
+				if(ctx->bytes_count_req < max_char_count) {
+					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_req)) ? lb->sz : (max_char_count - ctx->bytes_count_req);
+					lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
 
-					lb = logbuf_new_alloc(new_size, NULL, NULL);
-					lb->buf = (unsigned char*)new_buf;
-					ctx->bytes_count += new_size;
+					ctx->bytes_count_req += new_size;
 
-					if (log_content_submit(ctx->logctx, lb,
+					if (log_content_submit(ctx->logctx_req, lb,
 					                       0/*resp*/) == -1) {
 						logbuf_free(lb);
 						log_err_printf("Warning: Content log "
@@ -1605,7 +1601,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 				}
 			}
 			else{
-				if (log_content_submit(ctx->logctx, lb,
+				if (log_content_submit(ctx->logctx_req, lb,
 				                       0/*resp*/) == -1) {
 					logbuf_free(lb);
 					log_err_printf("Warning: Content log "
@@ -1657,17 +1653,13 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 		if (lb && WANT_CONTENT_LOG(ctx)) {
 			if (ctx->opts->max_bytes > 0) {
 				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
-				if(ctx->bytes_count < max_char_count) {
-					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
-					char *new_buf = malloc(sizeof(char) * new_size);
-					memcpy(new_buf, lb->buf, new_size);
-					logbuf_free(lb);
+				if(ctx->bytes_count_res < max_char_count) {
+					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_res)) ? lb->sz : (max_char_count - ctx->bytes_count_res);
+					lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
 
-					lb = logbuf_new_alloc(new_size, NULL, NULL);
-					lb->buf = (unsigned char*)new_buf;
-					ctx->bytes_count += new_size;
+					ctx->bytes_count_res += new_size;
 
-					if (log_content_submit(ctx->logctx, lb,
+					if (log_content_submit(ctx->logctx_res, lb,
 					                       0/*resp*/) == -1) {
 						logbuf_free(lb);
 						log_err_printf("Warning: Content log "
@@ -1677,7 +1669,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 				}
 			}
 			else{
-				if (log_content_submit(ctx->logctx, lb,
+				if (log_content_submit(ctx->logctx_res, lb,
 				                       0/*resp*/) == -1) {
 					logbuf_free(lb);
 					log_err_printf("Warning: Content log "
@@ -1700,23 +1692,29 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 	if (evbuffer_get_length(inbuf) == 0)
 		return;
 
+	log_content_ctx_t *current_log_ctx = (bev == ctx->dst.bev) ? ctx->logctx_res : ctx->logctx_req;
+
+	unsigned int current_bytes_limit = (bev == ctx->dst.bev) ? ctx->bytes_count_res : ctx->bytes_count_req;
+
+
 	if (WANT_CONTENT_LOG(ctx)) {
 		logbuf_t *lb;
 		lb = logbuf_new_alloc(evbuffer_get_length(inbuf), NULL, NULL);
 		if (lb && (evbuffer_copyout(inbuf, lb->buf, lb->sz) != -1)) {
 			if (ctx->opts->max_bytes > 0) {
 				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
-				if(ctx->bytes_count < max_char_count) {
-					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count)) ? lb->sz : (max_char_count - ctx->bytes_count);
-					char *new_buf = malloc(sizeof(char) * new_size);
-					memcpy(new_buf, lb->buf, new_size);
-					logbuf_free(lb);
+				if(current_bytes_limit < max_char_count) {
+					unsigned int new_size = (lb->sz < (max_char_count - current_bytes_limit)) ? lb->sz : (max_char_count - current_bytes_limit);
+					lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
 
-					lb = logbuf_new_alloc(new_size, NULL, NULL);
-					lb->buf = (unsigned char*)new_buf;
-					ctx->bytes_count += new_size;
+					if(bev == ctx->dst.bev){
+						ctx->bytes_count_res += new_size;
+					}
+					else{
+					 	ctx->bytes_count_req += new_size;
+					}
 
-					if (log_content_submit(ctx->logctx, lb,
+					if (log_content_submit(current_log_ctx, lb,
 					                       0/*resp*/) == -1) {
 						logbuf_free(lb);
 						log_err_printf("Warning: Content log "
@@ -1726,7 +1724,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 				}
 			}
 			else{
-				if (log_content_submit(ctx->logctx, lb,
+				if (log_content_submit(current_log_ctx, lb,
 				                       0/*resp*/) == -1) {
 					logbuf_free(lb);
 					log_err_printf("Warning: Content log "
@@ -1897,8 +1895,23 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 #endif /* HAVE_LOCAL_PROCINFO */
 		}
 		if (WANT_CONTENT_LOG(ctx)) {
-			if (log_content_open(&ctx->logctx, ctx->opts,
+			if (log_content_open(&ctx->logctx_req, ctx->opts,
 			                     ctx->src_str, ctx->dst_str,
+#ifdef HAVE_LOCAL_PROCINFO
+			                     ctx->lproc.exec_path,
+			                     ctx->lproc.user,
+			                     ctx->lproc.group
+#else /* HAVE_LOCAL_PROCINFO */
+			                     NULL, NULL, NULL
+#endif /* HAVE_LOCAL_PROCINFO */
+			                    ) == -1) {
+				if (errno == ENOMEM)
+					ctx->enomem = 1;
+				pxy_conn_terminate_free(ctx);
+				return;
+			}
+			if (log_content_open(&ctx->logctx_res, ctx->opts,
+			                     ctx->dst_str, ctx->src_str,
 #ifdef HAVE_LOCAL_PROCINFO
 			                     ctx->lproc.exec_path,
 			                     ctx->lproc.user,
@@ -2372,7 +2385,8 @@ void
 pxy_check_time(void *arg)
 {
 	pxy_conn_ctx_t *ctx = arg;
-	if (ctx->opts->max_delay_for_dfxml > 0) {
+	if (ctx->opts->max_delay_for_dfxml > 0 &&
+			ctx->is_dfxml_sent == 0) {
 
 		time_t now = time(NULL);
 		int diff_t;
@@ -2400,10 +2414,17 @@ pxy_send_dfxml(UNUSED evutil_socket_t fd, void *arg)
 		char *mac_address_src = sys_get_mac_address_from_arp(ctx->src_host);
 		char *mac_address_dst = sys_get_mac_address(ctx->opts->interface, ctx->fd);
 
-		write_dfxml_on_file(ctx->logctx, ctx->opts->dfxml_out, ctx->start_conn_time, 
+		//Save the request log file
+		write_dfxml_on_file(ctx->logctx_req, ctx->opts->dfxml_out, ctx->start_conn_time, 
 							ctx->end_conn_time, ctx->src_host, ctx->dst_host, 
 							mac_address_src , mac_address_dst, ctx->src_port,
 							ctx->dst_port);
+
+		//Save the response log file
+		write_dfxml_on_file(ctx->logctx_res, ctx->opts->dfxml_out, ctx->start_conn_time, 
+							ctx->end_conn_time, ctx->dst_host, ctx->src_host, 
+							mac_address_dst , mac_address_src, ctx->dst_port,
+							ctx->src_port);
 	}
 }
 
