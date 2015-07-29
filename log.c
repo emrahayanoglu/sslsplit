@@ -399,6 +399,7 @@ log_content_format_pathspec(const char *logspec, char *srcaddr, char *dstaddr,
 int
 log_content_open(log_content_ctx_t **pctx, opts_t *opts,
                  char *srcaddr, char *dstaddr,
+                 char *srcport, char *dstport,
                  char *exec_path, char *user, char *group)
 {
 	log_content_ctx_t *ctx;
@@ -419,6 +420,11 @@ log_content_open(log_content_ctx_t **pctx, opts_t *opts,
 
 		gettimeofday(&curTime, NULL);
 
+		log_dbg_printf("Source IP: %s Destination IP: %s\n", srcaddr, dstaddr);
+
+		char **src_array = sys_str_split(strdup(srcaddr), '.');
+		char **dst_array = sys_str_split(strdup(dstaddr), '.');
+
 		if (time(&epoch) == -1) {
 			log_err_printf("Failed to get time\n");
 			goto errout;
@@ -429,14 +435,16 @@ log_content_open(log_content_ctx_t **pctx, opts_t *opts,
 			goto errout;
 		}
 		if (!strftime(timebuf, sizeof(timebuf),
-		              "%Y-%m-%dT%H:%M:%S", utc)) {
+		              "%Y-%m-%dT%H:%M:%SZ", utc)) {
 			log_err_printf("Failed to format time: %s (%i)\n",
 			               strerror(errno), errno);
 			goto errout;
 		}
 
-		if (asprintf(&ctx->u.dir.filename, "%s/%s-%s-%s.log",
-		             opts->contentlog, timebuf, srcaddr, dstaddr) < 0) {
+		if (asprintf(&ctx->u.dir.filename, "%s/%s%03d.%03d.%03d.%03d.%05d-%03d.%03d.%03d.%03d.%05d",
+		             opts->contentlog, timebuf, atoi(*(src_array)), atoi(*(src_array + 1)), atoi(*(src_array + 2)), 
+		             atoi(*(src_array + 3)), atoi(srcport), atoi(*(dst_array)), atoi(*(dst_array + 1)), atoi(*(dst_array + 2)), 
+		             atoi(*(dst_array + 3)), atoi(dstport)) < 0) {
 			log_err_printf("Failed to format filename: %s (%i)\n",
 			               strerror(errno), errno);
 			goto errout;
@@ -800,13 +808,13 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 						char *src_ip, char *dst_ip, char *mac_daddr, char *mac_saddr, char *srcport,
 						char *dstport)
 {
-	const char *format = "<fileobject><filename>%s</filename><filesize></filesize><sslsplit startime='%s' endtime='%s' "
+	const char *format = "<fileobject><filename>%s</filename><filesize>%d</filesize><sslsplit startime='%s' endtime='%s' "
 						 "src_ipn='%s' dst_ipn='%s' mac_daddr='%s' mac_saddr='%s' packets='4' "
 						 " srcport='%s' dstport='%s' family='2' /></fileobject>\n";
 	char *out_dfxml_str;
 	
 	//Construct the XML tag
-	UNUSED off_t file_size = sys_get_filesize(ctx->u.dir.filename);
+	off_t file_size = sys_get_filesize(ctx->u.dir.filename);
 
 	char start_time_str[24];
 	int n;
@@ -828,7 +836,7 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 		return -1;
 	}
 
-	asprintf(&out_dfxml_str, format, ctx->u.dir.filename, start_time_str,
+	asprintf(&out_dfxml_str, format, ctx->u.dir.filename, file_size, start_time_str,
 				end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr,
 				srcport, dstport);
 	//Write on the Pipe

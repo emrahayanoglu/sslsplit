@@ -65,7 +65,7 @@ char * sys_get_mac_address(const char*, int);
 
 char * sys_get_mac_address_from_arp(const char *);
 
-
+char ** sys_str_split(char *, const char);
 
 #endif /* !SYS_H */
 

@@ -1896,7 +1896,8 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 		}
 		if (WANT_CONTENT_LOG(ctx)) {
 			if (log_content_open(&ctx->logctx_req, ctx->opts,
-			                     ctx->src_str, ctx->dst_str,
+			                     ctx->src_host, ctx->dst_host,
+			                     ctx->src_port, ctx->dst_port,
 #ifdef HAVE_LOCAL_PROCINFO
 			                     ctx->lproc.exec_path,
 			                     ctx->lproc.user,
@@ -1911,7 +1912,8 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 				return;
 			}
 			if (log_content_open(&ctx->logctx_res, ctx->opts,
-			                     ctx->dst_str, ctx->src_str,
+			                     ctx->dst_host, ctx->src_host,
+			                     ctx->dst_port, ctx->src_port,
 #ifdef HAVE_LOCAL_PROCINFO
 			                     ctx->lproc.exec_path,
 			                     ctx->lproc.user,
