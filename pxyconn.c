@@ -1430,7 +1430,7 @@ deny:
 			                      NULL, NULL);
 			if (lb &&
 			    (evbuffer_copyout(inbuf, lb->buf, lb->sz) != -1)) {
-				if (ctx->opts->max_bytes > 0) {
+				if (ctx->opts->max_bytes > 0 && sys_check_str_has_request_headers(lb->buf) == 1) {
 					unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
 					if(ctx->bytes_count_req < max_char_count) {
 						unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_req)) ? lb->sz : (max_char_count - ctx->bytes_count_req);
@@ -1468,7 +1468,7 @@ deny:
 		lb = logbuf_new_copy(ocspresp, sizeof(ocspresp) - 1,
 		                     NULL, NULL);
 		if (lb) {
-			if (ctx->opts->max_bytes > 0) {
+			if (ctx->opts->max_bytes > 0 && sys_check_str_has_request_headers(lb->buf) == 1) {
 				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
 				if(ctx->bytes_count_req < max_char_count) {
 					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_req)) ? lb->sz : (max_char_count - ctx->bytes_count_req);
@@ -1583,32 +1583,13 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 			}
 		}
 		if (lb && WANT_CONTENT_LOG(ctx)) {
-			if (ctx->opts->max_bytes > 0) {
-				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
-				if(ctx->bytes_count_req < max_char_count) {
-					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_req)) ? lb->sz : (max_char_count - ctx->bytes_count_req);
-					lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
-
-					ctx->bytes_count_req += new_size;
-
-					if (log_content_submit(ctx->logctx_req, lb,
-					                       0/*resp*/) == -1) {
-						logbuf_free(lb);
-						log_err_printf("Warning: Content log "
-						               "submission failed\n");
-					}
-					pxy_check_time(ctx);
-				}
+			if (log_content_submit(ctx->logctx_req, lb,
+			                       0/*resp*/) == -1) {
+				logbuf_free(lb);
+				log_err_printf("Warning: Content log "
+				               "submission failed\n");
 			}
-			else{
-				if (log_content_submit(ctx->logctx_req, lb,
-				                       0/*resp*/) == -1) {
-					logbuf_free(lb);
-					log_err_printf("Warning: Content log "
-					               "submission failed\n");
-				}
-				pxy_check_time(ctx);
-			}
+			pxy_check_time(ctx);
 		}
 		if (!ctx->seen_req_header)
 			return;
@@ -1651,32 +1632,13 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 			}
 		}
 		if (lb && WANT_CONTENT_LOG(ctx)) {
-			if (ctx->opts->max_bytes > 0) {
-				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
-				if(ctx->bytes_count_res < max_char_count) {
-					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_res)) ? lb->sz : (max_char_count - ctx->bytes_count_res);
-					lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
-
-					ctx->bytes_count_res += new_size;
-
-					if (log_content_submit(ctx->logctx_res, lb,
-					                       0/*resp*/) == -1) {
-						logbuf_free(lb);
-						log_err_printf("Warning: Content log "
-						               "submission failed\n");
-					}
-					pxy_check_time(ctx);
-				}
+			if (log_content_submit(ctx->logctx_res, lb,
+			                       0/*resp*/) == -1) {
+				logbuf_free(lb);
+				log_err_printf("Warning: Content log "
+				               "submission failed\n");
 			}
-			else{
-				if (log_content_submit(ctx->logctx_res, lb,
-				                       0/*resp*/) == -1) {
-					logbuf_free(lb);
-					log_err_printf("Warning: Content log "
-					               "submission failed\n");
-				}
-				pxy_check_time(ctx);
-			}
+			pxy_check_time(ctx);
 		}
 		if (!ctx->seen_resp_header)
 			return;
@@ -1701,7 +1663,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 		logbuf_t *lb;
 		lb = logbuf_new_alloc(evbuffer_get_length(inbuf), NULL, NULL);
 		if (lb && (evbuffer_copyout(inbuf, lb->buf, lb->sz) != -1)) {
-			if (ctx->opts->max_bytes > 0) {
+			if (ctx->opts->max_bytes > 0 && (sys_check_str_has_request_headers(lb->buf) == 1 ||  sys_check_str_has_response_headers(lb->buf) == 1)) {
 				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
 				if(current_bytes_limit < max_char_count) {
 					unsigned int new_size = (lb->sz < (max_char_count - current_bytes_limit)) ? lb->sz : (max_char_count - current_bytes_limit);

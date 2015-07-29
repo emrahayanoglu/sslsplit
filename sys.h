@@ -67,6 +67,9 @@ char * sys_get_mac_address_from_arp(const char *);
 
 char ** sys_str_split(char *, const char);
 
+int sys_check_str_has_request_headers(const unsigned char*);
+int sys_check_str_has_response_headers(const unsigned char*);
+
 #endif /* !SYS_H */
 
 /* vim: set noet ft=c: */

@@ -698,4 +698,38 @@ sys_str_split(char* a_str, const char a_delim)
     return result;
 }
 
+int 
+sys_check_str_has_request_headers(const unsigned char *buf)
+{
+	if(strstr((char *)buf, "Host") != NULL || strstr((char *)buf, "Connection") != NULL ||
+		strstr((char *)buf, "Accept") != NULL || strstr((char *)buf, "User-Agent") != NULL ||
+		strstr((char *)buf, "Referer") != NULL || strstr((char *)buf, "Accept-Encoding") != NULL ||
+		strstr((char *)buf, "Content-Type") != NULL || strstr((char *)buf, "Content-Length") != NULL ||
+		strstr((char *)buf, "Range") != NULL || strstr((char *)buf, "If-Range") != NULL ||
+		strstr((char *)buf, "Accept-Language") != NULL || strstr((char *)buf, "Cookie") != NULL)
+	{
+		return 0;
+	}
+
+	return 1;
+}
+
+
+int 
+sys_check_str_has_response_headers(const unsigned char *buf)
+{
+	if(strstr((char *)buf, "Set-Cookie") != NULL || strstr((char *)buf, "Expires") != NULL ||
+		strstr((char *)buf, "Content-Type") != NULL || strstr((char *)buf, "Content-Length") != NULL ||
+		strstr((char *)buf, "Connection") != NULL || strstr((char *)buf, "Server") != NULL ||
+		strstr((char *)buf, "Last-Modified") != NULL || strstr((char *)buf, "Date") != NULL ||
+		strstr((char *)buf, "Accept-Ranges") != NULL || strstr((char *)buf, "Content-Encoding") != NULL ||
+		strstr((char *)buf, "Location") != NULL || strstr((char *)buf, "Status") != NULL ||
+		strstr((char *)buf, "Content-Range") != NULL)
+	{
+		return 0;
+	}
+
+	return 1;
+}
+
 /* vim: set noet ft=c: */
