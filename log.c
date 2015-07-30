@@ -811,7 +811,7 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 	const char *format = "<fileobject><filename>%s</filename><filesize>%d</filesize><sslsplit startime='%s' endtime='%s' "
 						 "src_ipn='%s' dst_ipn='%s' mac_daddr='%s' mac_saddr='%s' packets='4' "
 						 " srcport='%s' dstport='%s' family='2' /></fileobject>\n";
-	char *out_dfxml_str;
+	char *out_dfxml_str = malloc(sizeof(char) * 750);
 	
 	//Construct the XML tag
 	off_t file_size = sys_get_filesize(ctx->u.dir.filename);
