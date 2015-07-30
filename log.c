@@ -816,39 +816,46 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 	//Construct the XML tag
 	off_t file_size = sys_get_filesize(ctx->u.dir.filename);
 
-	char start_time_str[24];
-	int n;
-	
-	n = strftime(start_time_str, sizeof(start_time_str),"%Y-%m-%dT%H:%M:%SZ", gmtime(&start_conn));
-	
-	if (n == 0) {
-		log_err_printf("Error from strftime(): buffer too small\n");
-		return -1;
+	if (file_size > 0)
+	{
+		char start_time_str[24];
+		int n;
+		
+		n = strftime(start_time_str, sizeof(start_time_str),"%Y-%m-%dT%H:%M:%SZ", gmtime(&start_conn));
+		
+		if (n == 0) {
+			log_err_printf("Error from strftime(): buffer too small\n");
+			return -1;
+		}
+
+		char end_time_str[24];
+
+		n = strftime(end_time_str, sizeof(end_time_str),"%Y-%m-%dT%H:%M:%SZ", gmtime(&end_conn));
+
+		if (n == 0) {
+			log_err_printf("Error from strftime(): buffer too small\n");
+			return -1;
+		}
+
+		asprintf(&out_dfxml_str, format, ctx->u.dir.filename, file_size, start_time_str,
+					end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr,
+					srcport, dstport);
+		//Write on the Pipe
+		FILE *stream;
+		stream = fopen(out_filename, "a");
+		if (stream == NULL) {
+			free(out_dfxml_str);
+			log_err_printf("Cannot open file for writing out the dfxml\n");
+			return -1;
+		}
+		fprintf(stream, out_dfxml_str);
+		fclose(stream);
+
+		free(out_dfxml_str);
+		return 0;
 	}
 
-	char end_time_str[24];
-	n = 1;
-
-	n = strftime(end_time_str, sizeof(end_time_str),"%Y-%m-%dT%H:%M:%SZ", gmtime(&end_conn));
-
-	if (n == 0) {
-		log_err_printf("Error from strftime(): buffer too small\n");
-		return -1;
-	}
-
-	asprintf(&out_dfxml_str, format, ctx->u.dir.filename, file_size, start_time_str,
-				end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr,
-				srcport, dstport);
-	//Write on the Pipe
-	FILE *stream;
-	stream = fopen(out_filename, "a");
-	if (stream == NULL) {
-		log_err_printf("Cannot open file for writing out the dfxml\n");
-		return -1;
-	}
-	fprintf(stream, out_dfxml_str);
-	fclose(stream);
-	return 0;
+	return -1;
 }
 
 /* vim: set noet ft=c: */

@@ -625,12 +625,15 @@ sys_get_mac_address_from_arp(const char *ip_addr)
 	if (!arpCache)
 	{
 		log_err_printf("Arp Cache: Failed to open file \"" ARP_CACHE "\"");
+		free(ret);
 		return NULL;
 	}
 
 	char header[ARP_BUFFER_LEN];
 	if(!fgets(header, sizeof(header), arpCache))
 	{
+		fclose(arpCache);
+		free(ret);
 		return NULL;
 	}
 
@@ -645,6 +648,7 @@ sys_get_mac_address_from_arp(const char *ip_addr)
 		}
 	}
 	fclose(arpCache);
+	free(ret);
 	return NULL;
 }
 

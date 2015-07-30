@@ -1099,6 +1099,10 @@ static void
 bufferevent_free_and_close_fd(struct bufferevent *bev, pxy_conn_ctx_t *ctx)
 {
 	evutil_socket_t fd = bufferevent_getfd(bev);
+
+	/* Send the DFXML file to provided file */
+	pxy_send_dfxml(fd, ctx);
+
 	SSL *ssl = NULL;
 
 	if (ctx->spec->ssl && !ctx->passthrough) {
@@ -1111,9 +1115,6 @@ bufferevent_free_and_close_fd(struct bufferevent *bev, pxy_conn_ctx_t *ctx)
 		               (void*)bev);
 	}
 #endif /* DEBUG_PROXY */
-
-	/* Send the DFXML file to provided file */
-	pxy_send_dfxml(fd, ctx);
 
 	bufferevent_free(bev); /* does not free SSL unless the option
 	                          BEV_OPT_CLOSE_ON_FREE was set */
@@ -2064,7 +2065,7 @@ connected:
 
 leave:
 	/* we only get a single disconnect event here for both connections */
-	if (OPTS_DEBUG(ctx->opts)) {
+	if (OPTS_DEBUG(ctx->opts) && ctx->dst_str && ctx->src_str) {
 		log_dbg_printf("%s disconnected to %s\n",
 		               this->ssl ? "SSL" : "TCP",
 		               ctx->dst_str);
@@ -2368,7 +2369,7 @@ void
 pxy_send_dfxml(UNUSED evutil_socket_t fd, void *arg)
 {
 	pxy_conn_ctx_t *ctx = arg;
-	if (ctx->is_dfxml_sent == 0)
+	if (ctx->is_dfxml_sent == 0 && ctx->opts)
 	{
 		//Set the connection time for end
 		ctx->end_conn_time = time(NULL);
