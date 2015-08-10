@@ -400,7 +400,7 @@ int
 log_content_open(log_content_ctx_t **pctx, opts_t *opts,
                  char *srcaddr, char *dstaddr,
                  char *srcport, char *dstport,
-                 char *exec_path, char *user, char *group)
+                 char *exec_path, char *user, char *group, int is_dfxml)
 {
 	log_content_ctx_t *ctx;
 
@@ -413,41 +413,50 @@ log_content_open(log_content_ctx_t **pctx, opts_t *opts,
 
 	if (opts->contentlog_isdir) {
 		/* per-connection-file content log (-S) */
-		char timebuf[24];
-		time_t epoch;
-		struct tm *utc;
-		struct timeval curTime;
+		if(is_dfxml != 1){
+			char timebuf[24];
+			time_t epoch;
+			struct tm *utc;
+			struct timeval curTime;
 
-		gettimeofday(&curTime, NULL);
+			gettimeofday(&curTime, NULL);
 
-		log_dbg_printf("Source IP: %s Destination IP: %s\n", srcaddr, dstaddr);
+			log_dbg_printf("Source IP: %s Destination IP: %s\n", srcaddr, dstaddr);
 
-		char **src_array = sys_str_split(strdup(srcaddr), '.');
-		char **dst_array = sys_str_split(strdup(dstaddr), '.');
+			char **src_array = sys_str_split(strdup(srcaddr), '.');
+			char **dst_array = sys_str_split(strdup(dstaddr), '.');
 
-		if (time(&epoch) == -1) {
-			log_err_printf("Failed to get time\n");
-			goto errout;
+			if (time(&epoch) == -1) {
+				log_err_printf("Failed to get time\n");
+				goto errout;
+			}
+			if ((utc = gmtime(&epoch)) == NULL) {
+				log_err_printf("Failed to convert time: %s (%i)\n",
+				               strerror(errno), errno);
+				goto errout;
+			}
+			if (!strftime(timebuf, sizeof(timebuf),
+			              "%Y-%m-%dT%H:%M:%SZ", utc)) {
+				log_err_printf("Failed to format time: %s (%i)\n",
+				               strerror(errno), errno);
+				goto errout;
+			}
+
+			if (asprintf(&ctx->u.dir.filename, "%s/%s%03d.%03d.%03d.%03d.%05d-%03d.%03d.%03d.%03d.%05d",
+			             opts->contentlog, timebuf, atoi(*(src_array)), atoi(*(src_array + 1)), atoi(*(src_array + 2)), 
+			             atoi(*(src_array + 3)), atoi(srcport), atoi(*(dst_array)), atoi(*(dst_array + 1)), atoi(*(dst_array + 2)), 
+			             atoi(*(dst_array + 3)), atoi(dstport)) < 0) {
+				log_err_printf("Failed to format filename: %s (%i)\n",
+				               strerror(errno), errno);
+				goto errout;
+			}
 		}
-		if ((utc = gmtime(&epoch)) == NULL) {
-			log_err_printf("Failed to convert time: %s (%i)\n",
-			               strerror(errno), errno);
-			goto errout;
-		}
-		if (!strftime(timebuf, sizeof(timebuf),
-		              "%Y-%m-%dT%H:%M:%SZ", utc)) {
-			log_err_printf("Failed to format time: %s (%i)\n",
-			               strerror(errno), errno);
-			goto errout;
-		}
-
-		if (asprintf(&ctx->u.dir.filename, "%s/%s%03d.%03d.%03d.%03d.%05d-%03d.%03d.%03d.%03d.%05d",
-		             opts->contentlog, timebuf, atoi(*(src_array)), atoi(*(src_array + 1)), atoi(*(src_array + 2)), 
-		             atoi(*(src_array + 3)), atoi(srcport), atoi(*(dst_array)), atoi(*(dst_array + 1)), atoi(*(dst_array + 2)), 
-		             atoi(*(dst_array + 3)), atoi(dstport)) < 0) {
-			log_err_printf("Failed to format filename: %s (%i)\n",
-			               strerror(errno), errno);
-			goto errout;
+		else{
+			if(asprintf(&ctx->u.dir.filename, "%s", opts->dfxml_out) < 0){
+				log_err_printf("Failed to format filename: %s (%i)\n",
+				               strerror(errno), errno);
+				goto errout;
+			}
 		}
 	} else if (opts->contentlog_isspec) {
 		/* per-connection-file content log with logspec (-F) */
@@ -458,6 +467,7 @@ log_content_open(log_content_ctx_t **pctx, opts_t *opts,
 		if (!ctx->u.spec.filename) {
 			goto errout;
 		}
+
 	} else {
 		/* single-file content log (-L) */
 		ctx->fd = content_fd;
@@ -804,14 +814,23 @@ log_fini(void)
  */
 
 int 
-write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_conn, time_t end_conn,
-						char *src_ip, char *dst_ip, char *mac_daddr, char *mac_saddr, char *srcport,
+write_dfxml_on_file(log_content_ctx_t *ctx, log_content_ctx_t *ctx_dfxml, time_t start_conn, 
+						time_t end_conn,char *src_ip, char *dst_ip, char *mac_daddr, char *mac_saddr, char *srcport,
 						char *dstport)
 {
+	if (!ctx) {
+		log_err_printf("Log Context is empty\n");
+		return -1;
+	}
+
+	if (!ctx_dfxml) {
+		log_err_printf("Log Context is empty\n");
+		return -1;
+	}
+
 	const char *format = "<fileobject><filename>%s</filename><filesize>%d</filesize><sslsplit startime='%s' endtime='%s' "
 						 "src_ipn='%s' dst_ipn='%s' mac_daddr='%s' mac_saddr='%s' packets='4' "
 						 " srcport='%s' dstport='%s' family='2' /></fileobject>\n";
-	char *out_dfxml_str = malloc(sizeof(char) * 750);
 	
 	//Construct the XML tag
 	off_t file_size = sys_get_filesize(ctx->u.dir.filename);
@@ -837,21 +856,19 @@ write_dfxml_on_file(log_content_ctx_t *ctx, char *out_filename, time_t start_con
 			return -1;
 		}
 
-		asprintf(&out_dfxml_str, format, ctx->u.dir.filename, file_size, start_time_str,
-					end_time_str, src_ip, dst_ip, mac_daddr, mac_saddr,
-					srcport, dstport);
-		//Write on the Pipe
-		FILE *stream;
-		stream = fopen(out_filename, "a");
-		if (stream == NULL) {
-			free(out_dfxml_str);
-			log_err_printf("Cannot open file for writing out the dfxml\n");
-			return -1;
-		}
-		fprintf(stream, out_dfxml_str);
-		fclose(stream);
+		logbuf_t *lb;
+		lb = logbuf_new_printf(NULL, NULL, format, ctx->u.dir.filename, file_size, 
+								start_time_str,end_time_str, src_ip, dst_ip, mac_daddr, 
+								mac_saddr, srcport, dstport);
 
-		free(out_dfxml_str);
+
+		if (log_content_submit(ctx_dfxml, lb,
+		                       0/*resp*/) == -1) {
+			logbuf_free(lb);
+			log_err_printf("Warning: Content log "
+			               "submission failed\n");
+		}
+
 		return 0;
 	}
 

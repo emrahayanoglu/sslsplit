@@ -59,7 +59,7 @@ extern logger_t *connect_log;
 
 typedef struct log_content_ctx log_content_ctx_t;
 int log_content_open(log_content_ctx_t **, opts_t *, char *, char *,
-                     char *, char *, char *, char *, char *) NONNULL(1,2,3) WUNRES;
+                     char *, char *, char *, char *, char *, int) NONNULL(1,2,3) WUNRES;
 int log_content_submit(log_content_ctx_t *, logbuf_t *, int)
                        NONNULL(1,2) WUNRES;
 int log_content_close(log_content_ctx_t **) NONNULL(1) WUNRES;
@@ -68,9 +68,8 @@ int log_preinit(opts_t *) NONNULL(1) WUNRES;
 int log_init(opts_t *) NONNULL(1) WUNRES;
 void log_fini(void);
 
-int write_dfxml_on_file(log_content_ctx_t *, char *, time_t, time_t,
-						char *, char *, char *, char *, char *,
-						char *);
+int write_dfxml_on_file(log_content_ctx_t *, log_content_ctx_t *, time_t, 
+						time_t,char *, char *, char *, char *,char *, char *);
 
 #endif /* !LOG_H */
 

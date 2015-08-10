@@ -171,6 +171,7 @@ typedef struct pxy_conn_ctx {
 	/* content log context*/
 	log_content_ctx_t *logctx_req;
 	log_content_ctx_t *logctx_res;
+	log_content_ctx_t *logctx_dfxml;
 
 	/* store fd and fd event while connected is 0 */
 	evutil_socket_t fd;
@@ -313,6 +314,11 @@ pxy_conn_ctx_free(pxy_conn_ctx_t *ctx)
 	if (WANT_CONTENT_LOG(ctx) && ctx->logctx_req) {
 		if (log_content_close(&ctx->logctx_req) == -1) {
 			log_err_printf("Warning: Request Content log close failed\n");
+		}
+	}
+	if (WANT_CONTENT_LOG(ctx) && ctx->logctx_dfxml) {
+		if (log_content_close(&ctx->logctx_dfxml) == -1) {
+			log_err_printf("Warning: DFXML Content log close failed\n");
 		}
 	}
 	free(ctx);
@@ -1864,11 +1870,11 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 #ifdef HAVE_LOCAL_PROCINFO
 			                     ctx->lproc.exec_path,
 			                     ctx->lproc.user,
-			                     ctx->lproc.group
+			                     ctx->lproc.group,
 #else /* HAVE_LOCAL_PROCINFO */
-			                     NULL, NULL, NULL
+			                     NULL, NULL, NULL,
 #endif /* HAVE_LOCAL_PROCINFO */
-			                    ) == -1) {
+			                    0) == -1) {
 				if (errno == ENOMEM)
 					ctx->enomem = 1;
 				pxy_conn_terminate_free(ctx);
@@ -1880,11 +1886,27 @@ pxy_bev_eventcb(struct bufferevent *bev, short events, void *arg)
 #ifdef HAVE_LOCAL_PROCINFO
 			                     ctx->lproc.exec_path,
 			                     ctx->lproc.user,
-			                     ctx->lproc.group
+			                     ctx->lproc.group,
 #else /* HAVE_LOCAL_PROCINFO */
-			                     NULL, NULL, NULL
+			                     NULL, NULL, NULL,
 #endif /* HAVE_LOCAL_PROCINFO */
-			                    ) == -1) {
+			                    0) == -1) {
+				if (errno == ENOMEM)
+					ctx->enomem = 1;
+				pxy_conn_terminate_free(ctx);
+				return;
+			}
+			if (log_content_open(&ctx->logctx_dfxml, ctx->opts,
+			                     ctx->dst_host, ctx->src_host,
+			                     ctx->dst_port, ctx->src_port,
+#ifdef HAVE_LOCAL_PROCINFO
+			                     ctx->lproc.exec_path,
+			                     ctx->lproc.user,
+			                     ctx->lproc.group,
+#else /* HAVE_LOCAL_PROCINFO */
+			                     NULL, NULL, NULL,
+#endif /* HAVE_LOCAL_PROCINFO */
+			                    1) == -1) {
 				if (errno == ENOMEM)
 					ctx->enomem = 1;
 				pxy_conn_terminate_free(ctx);
@@ -2380,16 +2402,14 @@ pxy_send_dfxml(UNUSED evutil_socket_t fd, void *arg)
 		char *mac_address_dst = sys_get_mac_address(ctx->opts->interface, ctx->fd);
 
 		//Save the request log file
-		write_dfxml_on_file(ctx->logctx_req, ctx->opts->dfxml_out, ctx->start_conn_time, 
-							ctx->end_conn_time, ctx->src_host, ctx->dst_host, 
-							mac_address_src , mac_address_dst, ctx->src_port,
-							ctx->dst_port);
+		write_dfxml_on_file(ctx->logctx_req, ctx->logctx_dfxml, ctx->start_conn_time, 
+							ctx->end_conn_time, ctx->src_host, ctx->dst_host, mac_address_src, 
+							mac_address_dst, ctx->src_port, ctx->dst_port);
 
 		//Save the response log file
-		write_dfxml_on_file(ctx->logctx_res, ctx->opts->dfxml_out, ctx->start_conn_time, 
-							ctx->end_conn_time, ctx->dst_host, ctx->src_host, 
-							mac_address_dst , mac_address_src, ctx->dst_port,
-							ctx->src_port);
+		write_dfxml_on_file(ctx->logctx_res, ctx->logctx_dfxml, ctx->start_conn_time, 
+							ctx->end_conn_time, ctx->dst_host, ctx->src_host, mac_address_dst, 
+							mac_address_src, ctx->dst_port, ctx->src_port);
 	}
 }
 
