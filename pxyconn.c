@@ -1442,7 +1442,6 @@ deny:
 					if(ctx->bytes_count_req < max_char_count) {
 						unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_req)) ? lb->sz : (max_char_count - ctx->bytes_count_req);
 						logbuf_t *lb_new = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
-
 						ctx->bytes_count_req += new_size;
 						if (log_content_submit(ctx->logctx_req, lb_new,
 						                       0/*resp*/) == -1) {
@@ -1450,9 +1449,9 @@ deny:
 							log_err_printf("Warning: Content log "
 							               "submission failed\n");
 						}
-						logbuf_free(lb);
 						pxy_check_time(ctx);
 					}
+					logbuf_free(lb);
 				}
 				else{
 					if (log_content_submit(ctx->logctx_req, lb,
@@ -1483,16 +1482,15 @@ deny:
 					logbuf_t *lb_new = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
 
 					ctx->bytes_count_req += new_size;
-
 					if (log_content_submit(ctx->logctx_req, lb_new,
 					                       0/*resp*/) == -1) {
 						logbuf_free(lb_new);
 						log_err_printf("Warning: Content log "
 						               "submission failed\n");
 					}
-					logbuf_free(lb);
 					pxy_check_time(ctx);
 				}
+				logbuf_free(lb);
 			}
 			else{
 				if (log_content_submit(ctx->logctx_req, lb,
@@ -1677,7 +1675,6 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 				if(current_bytes_limit < max_char_count) {
 					unsigned int new_size = (lb->sz < (max_char_count - current_bytes_limit)) ? lb->sz : (max_char_count - current_bytes_limit);
 					logbuf_t *lb_new = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
-
 					if(bev == ctx->dst.bev){
 						ctx->bytes_count_res += new_size;
 					}
@@ -1691,9 +1688,9 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 						log_err_printf("Warning: Content log "
 						               "submission failed\n");
 					}
-					logbuf_free(lb);
 					pxy_check_time(ctx);
 				}
+				logbuf_free(lb);
 			}
 			else{
 				if (log_content_submit(current_log_ctx, lb,
@@ -2413,6 +2410,14 @@ pxy_send_dfxml(UNUSED evutil_socket_t fd, void *arg)
 		write_dfxml_on_file(ctx->logctx_res, ctx->logctx_dfxml, ctx->start_conn_time, 
 							ctx->end_conn_time, ctx->dst_host, ctx->src_host, mac_address_dst, 
 							mac_address_src, ctx->dst_port, ctx->src_port);
+
+		if(mac_address_src){
+			free(mac_address_src);
+		}
+
+		if(mac_address_dst){
+			free(mac_address_dst);
+		}
 	}
 }
 
