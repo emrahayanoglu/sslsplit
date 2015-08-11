@@ -563,7 +563,7 @@ main(int argc, char *argv[])
 				opts->detach = 1;
 				break;
 			case 'D':
-				log_dbg_mode(LOG_DBG_MODE_ERRLOG);
+				log_dbg_mode(LOG_DBG_MODE_NONE);
 				opts->debug = 1;
 				break;
 			case 'V':

@@ -1441,15 +1441,16 @@ deny:
 					unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
 					if(ctx->bytes_count_req < max_char_count) {
 						unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_req)) ? lb->sz : (max_char_count - ctx->bytes_count_req);
-						lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
+						logbuf_t *lb_new = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
 
 						ctx->bytes_count_req += new_size;
-						if (log_content_submit(ctx->logctx_req, lb,
+						if (log_content_submit(ctx->logctx_req, lb_new,
 						                       0/*resp*/) == -1) {
-							logbuf_free(lb);
+							logbuf_free(lb_new);
 							log_err_printf("Warning: Content log "
 							               "submission failed\n");
 						}
+						logbuf_free(lb);
 						pxy_check_time(ctx);
 					}
 				}
@@ -1479,16 +1480,17 @@ deny:
 				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
 				if(ctx->bytes_count_req < max_char_count) {
 					unsigned int new_size = (lb->sz < (max_char_count - ctx->bytes_count_req)) ? lb->sz : (max_char_count - ctx->bytes_count_req);
-					lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
+					logbuf_t *lb_new = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
 
 					ctx->bytes_count_req += new_size;
 
-					if (log_content_submit(ctx->logctx_req, lb,
+					if (log_content_submit(ctx->logctx_req, lb_new,
 					                       0/*resp*/) == -1) {
-						logbuf_free(lb);
+						logbuf_free(lb_new);
 						log_err_printf("Warning: Content log "
 						               "submission failed\n");
 					}
+					logbuf_free(lb);
 					pxy_check_time(ctx);
 				}
 			}
@@ -1674,7 +1676,7 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 				unsigned int max_char_count = (unsigned int)(ctx->opts->max_bytes / sizeof(char));
 				if(current_bytes_limit < max_char_count) {
 					unsigned int new_size = (lb->sz < (max_char_count - current_bytes_limit)) ? lb->sz : (max_char_count - current_bytes_limit);
-					lb = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
+					logbuf_t *lb_new = logbuf_new_copy(lb->buf, sizeof(char) * new_size, NULL, NULL);
 
 					if(bev == ctx->dst.bev){
 						ctx->bytes_count_res += new_size;
@@ -1683,12 +1685,13 @@ pxy_bev_readcb(struct bufferevent *bev, void *arg)
 					 	ctx->bytes_count_req += new_size;
 					}
 
-					if (log_content_submit(current_log_ctx, lb,
+					if (log_content_submit(current_log_ctx, lb_new,
 					                       0/*resp*/) == -1) {
-						logbuf_free(lb);
+						logbuf_free(lb_new);
 						log_err_printf("Warning: Content log "
 						               "submission failed\n");
 					}
+					logbuf_free(lb);
 					pxy_check_time(ctx);
 				}
 			}
